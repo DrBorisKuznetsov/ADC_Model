@@ -1809,8 +1809,14 @@
                         n=params['n']
                     )
                     
-                    # FFT samples count
+                    # FFT samples count - dynamically adjust to capture at least 4 cycles of the aliased frequency
+                    alias_freq = abs(((params['sig_freq'] + 0.5 * params['f_s']) % params['f_s']) - 0.5 * params['f_s'])
                     N_samples = 1024
+                    if alias_freq > 0:
+                        required_samples = 4.0 * params['f_s'] / alias_freq
+                        while N_samples < required_samples and N_samples < 8192:
+                            N_samples *= 2
+                            
                     trace_window_s = 4.0 / params['sig_freq']
                     
                     # Run simulation

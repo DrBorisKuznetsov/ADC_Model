@@ -18,3 +18,8 @@ venv/
 
 # Project specific generated files
 wiki/assets/verification_results.png
+
+# AI Agent configuration files
+CLAUDE.md
+AGENTS.md
+

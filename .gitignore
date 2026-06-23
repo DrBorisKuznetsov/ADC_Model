@@ -1,0 +1,20 @@
+# Byte-compiled / optimized / DLL files
+__pycache__/
+*.py[cod]
+*$py.class
+
+# IDEs
+.idea/
+.vscode/
+*.swp
+*.swo
+*.user
+
+# Local environments
+.env
+.venv
+env/
+venv/
+
+# Project specific generated files
+wiki/assets/verification_results.png

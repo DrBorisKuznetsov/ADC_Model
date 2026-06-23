@@ -1,0 +1,1066 @@
+Skip to content
+ 
+Search Gists
+Search...
+All gists
+Back to GitHub
+@karpathy
+karpathy/llm-wiki.md
+Created 2 months ago • Report abuse
+Code
+Revisions
+1
+Stars
+5,000+
+Forks
+5,000+
+Clone this repository at &lt;script src=&quot;https://gist.github.com/karpathy/442a6bf555914893e9891c11519de94f.js&quot;&gt;&lt;/script&gt;
+<script src="https://gist.github.com/karpathy/442a6bf555914893e9891c11519de94f.js"></script>
+llm-wiki
+llm-wiki.md
+LLM Wiki
+A pattern for building personal knowledge bases using LLMs.
+
+This is an idea file, it is designed to be copy pasted to your own LLM Agent (e.g. OpenAI Codex, Claude Code, OpenCode / Pi, or etc.). Its goal is to communicate the high level idea, but your agent will build out the specifics in collaboration with you.
+
+The core idea
+Most people's experience with LLMs and documents looks like RAG: you upload a collection of files, the LLM retrieves relevant chunks at query time, and generates an answer. This works, but the LLM is rediscovering knowledge from scratch on every question. There's no accumulation. Ask a subtle question that requires synthesizing five documents, and the LLM has to find and piece together the relevant fragments every time. Nothing is built up. NotebookLM, ChatGPT file uploads, and most RAG systems work this way.
+
+The idea here is different. Instead of just retrieving from raw documents at query time, the LLM incrementally builds and maintains a persistent wiki — a structured, interlinked collection of markdown files that sits between you and the raw sources. When you add a new source, the LLM doesn't just index it for later retrieval. It reads it, extracts the key information, and integrates it into the existing wiki — updating entity pages, revising topic summaries, noting where new data contradicts old claims, strengthening or challenging the evolving synthesis. The knowledge is compiled once and then kept current, not re-derived on every query.
+
+This is the key difference: the wiki is a persistent, compounding artifact. The cross-references are already there. The contradictions have already been flagged. The synthesis already reflects everything you've read. The wiki keeps getting richer with every source you add and every question you ask.
+
+You never (or rarely) write the wiki yourself — the LLM writes and maintains all of it. You're in charge of sourcing, exploration, and asking the right questions. The LLM does all the grunt work — the summarizing, cross-referencing, filing, and bookkeeping that makes a knowledge base actually useful over time. In practice, I have the LLM agent open on one side and Obsidian open on the other. The LLM makes edits based on our conversation, and I browse the results in real time — following links, checking the graph view, reading the updated pages. Obsidian is the IDE; the LLM is the programmer; the wiki is the codebase.
+
+This can apply to a lot of different contexts. A few examples:
+
+Personal: tracking your own goals, health, psychology, self-improvement — filing journal entries, articles, podcast notes, and building up a structured picture of yourself over time.
+Research: going deep on a topic over weeks or months — reading papers, articles, reports, and incrementally building a comprehensive wiki with an evolving thesis.
+Reading a book: filing each chapter as you go, building out pages for characters, themes, plot threads, and how they connect. By the end you have a rich companion wiki. Think of fan wikis like Tolkien Gateway — thousands of interlinked pages covering characters, places, events, languages, built by a community of volunteers over years. You could build something like that personally as you read, with the LLM doing all the cross-referencing and maintenance.
+Business/team: an internal wiki maintained by LLMs, fed by Slack threads, meeting transcripts, project documents, customer calls. Possibly with humans in the loop reviewing updates. The wiki stays current because the LLM does the maintenance that no one on the team wants to do.
+Competitive analysis, due diligence, trip planning, course notes, hobby deep-dives — anything where you're accumulating knowledge over time and want it organized rather than scattered.
+Architecture
+There are three layers:
+
+Raw sources — your curated collection of source documents. Articles, papers, images, data files. These are immutable — the LLM reads from them but never modifies them. This is your source of truth.
+
+The wiki — a directory of LLM-generated markdown files. Summaries, entity pages, concept pages, comparisons, an overview, a synthesis. The LLM owns this layer entirely. It creates pages, updates them when new sources arrive, maintains cross-references, and keeps everything consistent. You read it; the LLM writes it.
+
+The schema — a document (e.g. CLAUDE.md for Claude Code or AGENTS.md for Codex) that tells the LLM how the wiki is structured, what the conventions are, and what workflows to follow when ingesting sources, answering questions, or maintaining the wiki. This is the key configuration file — it's what makes the LLM a disciplined wiki maintainer rather than a generic chatbot. You and the LLM co-evolve this over time as you figure out what works for your domain.
+
+Operations
+Ingest. You drop a new source into the raw collection and tell the LLM to process it. An example flow: the LLM reads the source, discusses key takeaways with you, writes a summary page in the wiki, updates the index, updates relevant entity and concept pages across the wiki, and appends an entry to the log. A single source might touch 10-15 wiki pages. Personally I prefer to ingest sources one at a time and stay involved — I read the summaries, check the updates, and guide the LLM on what to emphasize. But you could also batch-ingest many sources at once with less supervision. It's up to you to develop the workflow that fits your style and document it in the schema for future sessions.
+
+Query. You ask questions against the wiki. The LLM searches for relevant pages, reads them, and synthesizes an answer with citations. Answers can take different forms depending on the question — a markdown page, a comparison table, a slide deck (Marp), a chart (matplotlib), a canvas. The important insight: good answers can be filed back into the wiki as new pages. A comparison you asked for, an analysis, a connection you discovered — these are valuable and shouldn't disappear into chat history. This way your explorations compound in the knowledge base just like ingested sources do.
+
+Lint. Periodically, ask the LLM to health-check the wiki. Look for: contradictions between pages, stale claims that newer sources have superseded, orphan pages with no inbound links, important concepts mentioned but lacking their own page, missing cross-references, data gaps that could be filled with a web search. The LLM is good at suggesting new questions to investigate and new sources to look for. This keeps the wiki healthy as it grows.
+
+Indexing and logging
+Two special files help the LLM (and you) navigate the wiki as it grows. They serve different purposes:
+
+index.md is content-oriented. It's a catalog of everything in the wiki — each page listed with a link, a one-line summary, and optionally metadata like date or source count. Organized by category (entities, concepts, sources, etc.). The LLM updates it on every ingest. When answering a query, the LLM reads the index first to find relevant pages, then drills into them. This works surprisingly well at moderate scale (~100 sources, ~hundreds of pages) and avoids the need for embedding-based RAG infrastructure.
+
+log.md is chronological. It's an append-only record of what happened and when — ingests, queries, lint passes. A useful tip: if each entry starts with a consistent prefix (e.g. ## [2026-04-02] ingest | Article Title), the log becomes parseable with simple unix tools — grep "^## \[" log.md | tail -5 gives you the last 5 entries. The log gives you a timeline of the wiki's evolution and helps the LLM understand what's been done recently.
+
+Optional: CLI tools
+At some point you may want to build small tools that help the LLM operate on the wiki more efficiently. A search engine over the wiki pages is the most obvious one — at small scale the index file is enough, but as the wiki grows you want proper search. qmd is a good option: it's a local search engine for markdown files with hybrid BM25/vector search and LLM re-ranking, all on-device. It has both a CLI (so the LLM can shell out to it) and an MCP server (so the LLM can use it as a native tool). You could also build something simpler yourself — the LLM can help you vibe-code a naive search script as the need arises.
+
+Tips and tricks
+Obsidian Web Clipper is a browser extension that converts web articles to markdown. Very useful for quickly getting sources into your raw collection.
+Download images locally. In Obsidian Settings → Files and links, set "Attachment folder path" to a fixed directory (e.g. raw/assets/). Then in Settings → Hotkeys, search for "Download" to find "Download attachments for current file" and bind it to a hotkey (e.g. Ctrl+Shift+D). After clipping an article, hit the hotkey and all images get downloaded to local disk. This is optional but useful — it lets the LLM view and reference images directly instead of relying on URLs that may break. Note that LLMs can't natively read markdown with inline images in one pass — the workaround is to have the LLM read the text first, then view some or all of the referenced images separately to gain additional context. It's a bit clunky but works well enough.
+Obsidian's graph view is the best way to see the shape of your wiki — what's connected to what, which pages are hubs, which are orphans.
+Marp is a markdown-based slide deck format. Obsidian has a plugin for it. Useful for generating presentations directly from wiki content.
+Dataview is an Obsidian plugin that runs queries over page frontmatter. If your LLM adds YAML frontmatter to wiki pages (tags, dates, source counts), Dataview can generate dynamic tables and lists.
+The wiki is just a git repo of markdown files. You get version history, branching, and collaboration for free.
+Why this works
+The tedious part of maintaining a knowledge base is not the reading or the thinking — it's the bookkeeping. Updating cross-references, keeping summaries current, noting when new data contradicts old claims, maintaining consistency across dozens of pages. Humans abandon wikis because the maintenance burden grows faster than the value. LLMs don't get bored, don't forget to update a cross-reference, and can touch 15 files in one pass. The wiki stays maintained because the cost of maintenance is near zero.
+
+The human's job is to curate sources, direct the analysis, ask good questions, and think about what it all means. The LLM's job is everything else.
+
+The idea is related in spirit to Vannevar Bush's Memex (1945) — a personal, curated knowledge store with associative trails between documents. Bush's vision was closer to this than to what the web became: private, actively curated, with the connections between documents as valuable as the documents themselves. The part he couldn't solve was who does the maintenance. The LLM handles that.
+
+Note
+This document is intentionally abstract. It describes the idea, not a specific implementation. The exact directory structure, the schema conventions, the page formats, the tooling — all of that will depend on your domain, your preferences, and your LLM of choice. Everything mentioned above is optional and modular — pick what's useful, ignore what isn't. For example: your sources might be text-only, so you don't need image handling at all. Your wiki might be small enough that the index file is all you need, no search engine required. You might not care about slide decks and just want markdown pages. You might want a completely different set of output formats. The right way to use this is to share it with your LLM agent and work together to instantiate a version that fits your needs. The document's only job is to communicate the pattern. Your LLM can figure out the rest.
+
+Load earlier comments...
+@Shilren
+Shilren
+commented
+2 weeks ago
+Thanks for this writeup — the core reframe, "don't re-retrieve raw docs at query time, let the LLM incrementally maintain a persistent wiki," genuinely changed how I approached a problem I'd been stuck on. Sharing what I built on top of it.
+
+The problem. Like a lot of people, my work experience was scattered across project retros, weekly reports, chat logs, and my own head. Every time I wrote a resume or prepped an interview answer, I re-dug through everything and re-fed it to an LLM — expensive, slow, lossy, and worst of all the numbers never matched across versions (a metric would be "22" in the resume and "23" in the spoken script, because each was written from scratch). I realized most people treat AI as a one-shot rewriter, when the real leverage is a reusable, single-source-of-truth knowledge layer — which is exactly your LLM Wiki point.
+
+What I built — interview-doc-agent (https://github.com/Shilren/interview-doc-agent), an open-source skill (MIT) that maps onto your three layers almost one-to-one:
+
+materials/ → raw sources. Paste anything, unstructured.
+experience-library/ → the wiki layer. The LLM consolidates each project into a clean, interview-ready doc following a fixed schema: one-liner → situation/problem/actions → every quantified metric preserved → transferable strengths.
+index.md → the index. The agent reads this first to locate the 1–2 relevant docs, instead of loading the whole library.
+SKILL.md → the schema. Behavior config: when to trigger, what steps to follow, hard rules (e.g. never fabricate a number — leave a ___ placeholder if missing).
+The workflow is: drop raw notes in → "consolidate into the library" (ingest once) → then every resume, interview script, or JD-tailored variant generates from the same library, so the numbers are always consistent. New experiences compound the library instead of being re-derived each time.
+
+The part I most wanted to add — context vs. RAG is fundamentally a question of magnitude. A lot of "knowledge base + AI" projects reach for RAG by default, but I think that's often premature. The decision tree I landed on:
+
+< ~50k–100k tokens (~150–200 dense pages): context (LLM Wiki) wins, decisively. 100% retrieval reliability (no missed chunks, no semantics broken by chunking), near-zero infra (well-structured Markdown — no vector DB, no embedding pipeline, no chunking/retrieval tuning, hours instead of weeks), and global reasoning over the whole corpus rather than stitching isolated snippets — which matters a lot for multi-hop or "summarize across everything" tasks.
+Millions of tokens and up: RAG is the only option — it won't fit, so retrieval is how you scale.
+In between / production: hybrid — the stable, core knowledge in context, the dynamic/massive/per-user records behind RAG.
+A personal experience base, once consolidated, is only a few thousand to ~20k tokens — far below the line — so RAG would be pure overhead and a reliability downgrade. And to be precise: my index.md isn't RAG. It does no vector matching and no chunking; it just lets the agent open fewer whole files as the library grows. Even reading the entire library would comfortably fit in context — the index is an optimization, not a retrieval system. With modern context windows at 200k–1M+ tokens, the ceiling for the pure-context approach keeps rising.
+
+Net: below that magnitude threshold, the LLM Wiki approach is both simpler and more reliable than RAG. Thanks again — this writeup saved me from over-engineering the whole thing.
+
+@Shilren
+Shilren
+commented
+2 weeks ago
+Karpathy说的「别每次都去翻原始资料,而是让 LLM 一点点维护一个长期的 wiki」这句话,真的点醒了我一个一直没想通的问题。
+
+说说我照着这个思路做的东西。我遇到的问题:我的工作经历到处都是 —— 项目复盘、周报、聊天记录、还有一些只在脑子里。每次写简历或者准备面试,都得重新翻一遍、再喂给 AI,又费钱又慢还容易漏东西。最烦的是,同一个数字在简历里写"22"、在面试稿里却记成"23",因为两份是分开写的。我后来想明白:大多数人只是把 AI 当成"帮我改一次"的工具,但其实更值钱的是有一个能反复用、数据只有一个出处的知识库 —— 这就是你说的 LLM Wiki。
+
+我做的东西 —— interview-doc-agent (https://github.com/Shilren/interview-doc-agent),一个开源,%E4%B8%80%E4%B8%AA%E5%BC%80%E6%BA%90) skill(MIT),几乎一对一对应你的三层:
+
+materials/ → 原始素材,什么格式都行,粘进来就好
+经历库/ → wiki 层,AI 把每个项目整理成一份面试能直接用的档案(一句话 → 背景/问题/做法 → 所有数据都留住 → 可迁移的亮点)
+index.md → 索引,先读它找到相关的 1-2 篇,而不是全部加载
+SKILL.md → schema,行为说明(什么时候用、按什么步骤、有哪些硬规则,比如"绝不编数字")
+我最想补充的一点 —— 到底用上下文还是 RAG,本质上是个量级问题。 很多"知识库 + AI"的项目张口就上 RAG,但我觉得这往往是过度设计了。我自己理出来的判断标准是:
+
+小于约 5万–10万 token(大概 150–200 页):上下文(LLM Wiki)完胜 —— 检索可靠性 100%(不会漏匹配、也不会因为分块把语义切断)、几乎不需要任何基建(一个结构清晰的 Markdown 就够,不用向量库、不用嵌入、不用分块)、而且能对全局直接推理,而不是把几个零散片段拼起来
+几百万 token 以上:只能用 RAG —— 塞不进上下文,检索是唯一能扩展的办法
+介于两者之间 / 生产系统:混合 —— 把最核心稳定的知识放进上下文,把海量、动态的数据交给 RAG
+一份个人经历库整理完也就几千到两万 token,远在这条线以下,所以上 RAG 纯属增加负担、还把可靠性变差了。再澄清一点:我那个 index.md 也不是 RAG —— 它不做向量匹配、不分块,只是在经历变多以后让 AI 少读几个完整文件而已;就算全读进去也放得下,索引只是个优化,不是检索系统。现在主流模型上下文都到 200k 甚至 100 万+ token 了,纯上下文这条路的上限只会越来越高。
+
+只要在这个量级以下,LLM Wiki 比 RAG 又简单又可靠。
+
+@skyllwt
+skyllwt
+commented
+2 weeks ago
+• 
+Love this LLM-Wiki idea? We built a full open-source system on it → AutoSci
+
+Come and enjoy: https://github.com/skyllwt/AutoSci
+
+autosci_fig1_v1-第 15 页 drawio png
+Karpathy's pattern (immutable raw/ → an LLM-compiled wiki/ → a CLAUDE.md schema) is the exact foundation of AutoSci — an agent that turns the wiki into a research memory and then does autonomous science on top of it. All on Claude Code:
+
+📚 Ingest papers into a cross-linked wiki of concept/method/idea pages ([[wikilinks]], contradiction edges — the LLM-Wiki, fully realized)
+💡 Ideate → experiment → write: it reads its own memory to generate ideas, design + run experiments, draft the paper, and handle rebuttals
+🧬 Self-evolving memory: between projects it consolidates, re-weights, and re-links the wiki (a "sleep" phase)
+🕸️ Multi-agent DAGs for the hard reasoning steps
+We've already used it to write 3 papers end-to-end. Fully open (MIT).
+
+⭐ If this is where you want LLM-Wikis to go, a star genuinely helps us！ and we welcome issues/PRs/Contributors
+👉 https://github.com/skyllwt/AutoSci
+📄 Paper: https://arxiv.org/abs/2605.31468
+
+Demo: 【北大做了一个会自我进化的科研 Agent：AutoSci】 https://www.bilibili.com/video/BV19gVg6pEk6/?share_source=copy_web&vd_source=338de971cb27f42aaaf5d8bfdeed04b3
+
+截图 2026-06-02 09-03-07
+RED: 北大做了一个“越做科研越聪明”的AI科学家 北大团队... http://xhslink.com/o/2clEkgugEPw
+复制后打开【小红书】查看笔记！
+
+@Z-M-Huang
+Z-M-Huang
+commented
+2 weeks ago
+Dense-Mem: memory beyond RAG
+dense-mem-memory-beyond-rag
+I built an open-source MCP memory server called Dense-Mem:
+
+https://github.com/markhuangai/dense-mem
+
+I built an open-source MCP memory server called Dense-Mem:
+
+https://github.com/markhuangai/dense-mem
+
+The idea I am trying to explore is that RAG is very useful for retrieval, but durable AI memory may need more than vector search alone.
+
+In daily LLM workflows, the hard problems are often not just "find a similar chunk." They are questions like:
+
+What did the user actually say?
+Is this evidence, a proposed claim, or an accepted fact?
+Is there a newer fact that supersedes the old one?
+Are two memories in conflict?
+What source supports this answer?
+Can the same memory be reused across different AI tools?
+So Dense-Mem separates the host LLM from the memory layer:
+
+the host LLM handles conversation and judgment
+Dense-Mem stores evidence, typed claims, accepted facts, provenance, conflicts, embeddings, and graph recall
+MCP clients can recall the same durable memory instead of rebuilding context from scratch every session
+I wrote more about the motivation here:
+
+https://markhuang.ai/blog/ai-memory-beyond-rag
+
+And I made a hosted demo so people can try it without self-hosting:
+
+https://markhuang.ai/blog/dense-mem-hosted-demo-test-instance
+
+I do not want to overclaim that this "solves memory." I am mostly curious whether this architecture feels useful, overbuilt, or missing something important.
+
+If anyone has thoughts, I would especially appreciate critique on:
+
+Does the memory-server / host-LLM boundary make sense?
+Is graph-backed memory a useful abstraction here, or should this remain simpler?
+What evaluation would best show whether this improves accuracy in real daily LLM workflows?
+What failure modes should I test before claiming this direction is useful?
+Thanks for reading. I would genuinely value technical pushback.
+
+@mikhashev
+mikhashev
+commented
+2 weeks ago
+Follow-up on our knowledge-as-weights post. Last time we asked: what if a personal model could learn and grow with you -- encoding confirmed knowledge directly in weights, adding new facts as you learn them, no RAG needed? Two weeks and 52 experiments later, we have a partial answer: below ~10M parameters, we could not make knowledge-in-weights work via any mechanism we tested -- LoRA injection, test-time training, or architecture changes. Here's the journey.
+
+The vision: We're building DPC Messenger -- peer-to-peer infrastructure for human-AI co-evolution. A space where people and AI grow together. The target (knowledge-in-weights) architecture (designed, not yet implemented) uses continual LoRA adapters per knowledge cluster, with a perceptron router for O(1) adapter selection at inference. Three knowledge types are planned: static facts, dynamic state, and predictive hypotheses -- each with their own lifecycle in weights. The model would learn and grow as the person confirms new knowledge -- not one-shot injection, but continual learning. What's built today: the knowledge graph, the training pipeline, and the diagnostic tooling. What's not built yet: the adapter routing, the knowledge-type lifecycle, and the continual learning loop itself. But first we needed to know: how small can the knowledge model be? This post maps the lower bound.
+
+Phase 1: "Can a small model learn our domain?" (11 experiments)
+We adapted the autoresearch framework (based on karpathy/nanoGPT) with a custom training pipeline and experiment workflow for domain-specific knowledge encoding. All 52 experiments are logged with full reproducibility metadata (hyperparameters, timings, per-epoch metrics). We trained on a personal knowledge corpus -- 278K documents (~7.5M tokens) of domain-specific triples from a knowledge graph plus natural text. Question: can a tiny model reach reasonable perplexity on structured knowledge?
+
+TinyStories baseline: val_bpb 1.221. Our corpus: 1.682. The domain gap is real -- structured triples are harder than simple narratives. We tried dropout (no effect), smaller models (worse at same compute budget), larger models (overfit). The floor on our corpus is ~0.98 val_bpb, regardless of architecture (confirmed across two independent architectures: 4L/256d at 3.7M params and 8L/128d at 2.0M params). Width matters more than depth at fixed compute -- 4L x 256d beats 8L x 128d consistently. Seed variance dominated architectural differences in our measurements. The model learns the domain, but the data ceiling is immutable at this corpus size.
+
+Phase 2: "Does architecture matter?" (21 experiments)
+Systematic sweep of 5 architectural knobs: MLP ratio, GQA, value embeddings, RMSNorm, weight tying. Answer: mostly noise at this scale. One exception -- weight tying saves 50% of parameters with zero quality loss, giving us our final 3.7M param model. BERT-style encoder tested at matched scale (~30M params) -- decoder beats encoder by +1.24 bpb. Value embeddings are load-bearing (removing them costs +0.116 bpb at matched parameter count). The take-away: at sub-10M scale, architecture is second-order. The first-order constraints are data and compute.
+
+Phase 3: "Can we inject knowledge via gradients?" (600 combinations)
+Test-time training (TTT) sweep: 600 combinations of learning rate, steps, and fact count on a 37M param model. Result: 0/600 newly recalled facts. The model overfits on injection token patterns while loss drops to 0.01. It memorizes the surface form of injection text but cannot extract semantic subject-predicate-object associations. Via teacher forcing, entity accuracy is 19.4% -- facts are weakly present in weights, but free recall fails completely.
+
+Phase 4: "Can LoRA inject knowledge?" (4 experiments + diagnostics)
+This is where we expected success. Schulman et al. (2025) show LoRA injection works reliably when per-token probability exceeds p=0.5 on 7B+ models. We tried it at 3.7M.
+
+Config	LoRA target	Rank	Params injected	LR	top-1 recall	top-10 collapse
+MLP-only	c_fc, c_proj	16	164K (4.5% of model)	1e-4	0.49% -> 0% by epoch 3	epoch 6
+MLP-only	c_fc, c_proj	16	164K	1e-3	0.49% -> 0% by epoch 1	epoch 2
+Attn-only	c_q, c_v	16	65K (1.8% of model)	1e-4	0.49% -> 0% by epoch 4	by epoch 9
+Loss decreased monotonically in every run while recall died. The model learned to minimize loss on injection text via existing non-factual patterns -- not by encoding new facts.
+
+The diagnostic that explained everything:
+We built a 5-metric diagnostic pipeline (D1-D5) and measured per-token probability p(fact) -- the model's confidence on correct factual completions. Result: zero tokens above p=0.5 even BEFORE LoRA training. Out of 1,214 injected facts: max p(fact) = 0.29, mean = 0.008. Post-LoRA training: max dropped to 0.02, mean to 0.002.
+
+Schulman et al. (2025) show LoRA injection works reliably above the p=0.5 threshold. Our model's ceiling is ~60x below that. This rules out "LoRA optimization problem" and confirms "structural capacity problem" -- the model cannot encode facts at sufficient probability for stable recall. No amount of adapter tuning fixes this.
+
+Additional diagnostic: base model gradients are 600-5000x larger than LoRA gradients (ratio grows as training progresses). The adapter barely influences the model despite measurable loss reduction.
+
+Why existing literature didn't predict this:
+Three recent LoRA knowledge-injection papers (Schulman 2025, "Understanding LoRA as Knowledge Memory" ICML 2026, "LoRA Rank Trade-offs" Dec 2025) all test on 7B+ parameters -- three orders of magnitude larger than our model. At 4 layers, MLP-only LoRA perturbs 50% of the model; attention-only perturbs 18%. At 24+ layers those numbers drop to ~4% and ~1.5% respectively. LoRA assumes deep enough models that adapters are small perturbations -- that assumption breaks below ~10M parameters.
+
+What's next:
+Scaling up to 10-50M parameters (12-16 layers) where LoRA perturbation drops below 5%. Running the same D1-D5 diagnostic pipeline on each checkpoint to find where p(fact) crosses the 0.5 threshold. If it does, we have the minimum viable model size for personal LoRA knowledge injection. If it doesn't, the knowledge-as-weights hypothesis needs a fundamentally different injection mechanism at this scale.
+
+Hardware: All experiments on a single RTX 3060 12GB (Xeon E3-1240 V2). Full scaling-laws grid (~9 configs) runs in ~1.5 hours. LoRA experiments + diagnostics: ~2 hours. This is entirely reproducible on consumer hardware.
+
+@MuhammadSaqlainAslam
+MuhammadSaqlainAslam
+commented
+2 weeks ago
+• 
+Hi Andrej — your gist inspired this project at the AI Research Center, Hon Hai Research Institute (Foxconn).
+🌐 Live demo: https://muhammadsaqlainaslam.github.io/my-llm-wiki
+📦 Repo: https://github.com/MuhammadSaqlainAslam/my-llm-wiki
+🏛️ Institute: https://hhri.foxconn.com/en
+What we built on top of your pattern:
+🤖 Agentic ingestion — one command searches arXiv, GitHub, blogs, and YouTube transcripts, generates structured notes, and deploys automatically:
+python3 agent.py topic "Mamba 2 SSM improvements"
+📚 Citation intelligence — every paper shows its total citations plus the top 10 most-cited papers that reference it, tracing the full intellectual thread from the 2017 Transformer through 2025 inference optimization.
+🌐 Interactive web demo — browse 150+ notes, full-text search with Ctrl+F-style match navigation, side-by-side paper comparison, D3 knowledge graph where node size = citation count, and a timeline from 2017→2026. Fully mobile responsive.
+🔗 Deep cross-linking — every note shows backlinks. "Attention is All You Need" has 46 backlinks — the most referenced paper in the wiki, as expected.
+Coverage: Transformer → FlashAttention → S4 → Mamba → Mamba-2 → Mamba-3 → xLSTM → RWKV → RetNet → Griffin → Speculative Decoding → KV Cache → DeepSeek-V4 · 50+ concept glossary stubs
+Stack: Claude API (Vertex AI) · PyMuPDF · D3.js · KaTeX · GitHub Pages · Obsidian + Dataview
+
+@kytmanov
+kytmanov
+commented
+2 weeks ago
+Synto v0.5.0 is out.
+https://github.com/kytmanov/synto
+
+Main addition: per-role providers. Run each model where it makes sense - small fast model on local Ollama, heavy writing model on a cloud endpoint. Each role gets its own provider, connection, and key. synto setup walks you through the split.
+Also new in v0.5:
+
+rename a concept everywhere: synto concept rename OLD NEW moves the article, repoints every inbound link, and migrates the state DB.
+per-model knobs: context size, temperature, thinking on/off. Thinking models (Qwen 3.5, DeepSeek-R1) no longer time out on ingest.
+Anthropic-compatible API support, on top of OpenAI-compatible - point any role at Kimi and similar endpoints.
+Same shape as before:
+
+works with local LLMs
+great with Ollama and LM Studio
+plain Markdown
+Obsidian-friendly
+no vector DB
+no cloud required
+multi-language
+Star it if you want to support local-first AI tools. Fork it if you want to build on it.
+
+@Electro-resonance
+Electro-resonance
+commented
+2 weeks ago
+I’d posted previously about my own implementation here:
+
+https://github.com/Electro-resonance/LLM-WIKI-MCP
+
+It’s been fascinating reading the other implementations that have emerged from Andrej’s original post. Most seem to focus on the core idea of transforming source material into a maintained wiki that acts as a higher-quality retrieval layer than traditional RAG.
+
+Mine wandered off in a slightly different direction, as these things tend to do once you start actually building them at midnight after too much coffee and a folder full of half-organised notes.
+
+I wanted to see what happens when the wiki itself becomes an MCP-accessible system rather than simply a collection of generated pages. That led to features such as provenance-aware ingestion, recursive conversational memory, self-maintaining notes, runtime introspection, and agent-callable maintenance tools.
+
+One area I’ve focused on quite heavily is provenance. Rather than simply ingesting files and forgetting where they came from, the system records source metadata, timestamps, hashes, and file locations. When ingest is run again, unchanged files can be skipped, modified files can be updated, and multiple files with the same name can coexist if they originate from different locations. It is a bit like treating the wiki as a compiled knowledge artefact rather than a one-shot summary pile.
+
+The other slightly strange experiment is the notes layer. The source wiki stores the extracted knowledge, while the AI sidecar notes store inferred relationships, possible cross-links, odd little “this might matter later” observations, and future investigation paths. It gives the system a second layer of memory that feels a bit less like filing and a bit more like rummaging through a research notebook with the margins full of arrows.
+
+I see these projects less as competitors and more as different expeditions into the design space opened up by Andrej’s original LLM Wiki concept. I’d be interested to hear how others are approaching provenance, long-term maintenance, self-reflection, and agent-driven evolution of the wiki itself.
+
+Also, I now have the slightly ridiculous situation where the tool can ingest its own docs and then answer questions about how it works, which feels either useful, recursive, or like I have accidentally taught a filing cabinet to talk about itself.
+
+@pursultani
+pursultani
+commented
+2 weeks ago
+TL;DR
+
+The pattern defaults to a convergent epistemology where contradiction is a defect. In subjective domains, like the humanities, contradiction is information. This is not one problem but two that are usually run together. There is a policy default, where the rules treat contradiction as degradation, and a representation gap, where untyped edges cannot express a contradiction as anything other than a flag. Fixing it needs both. You need a policy that preserves contradictions and a representation that can hold them. Typed edges
+supply the second. However, they do not, on their own, supply the first.
+
+The philosophical problem
+The pattern's default rules treat contradiction as a defect to be resolved. The lint pass groups contradictions with stale claims and orphans, which are genuine defects, and the "synthesis" framing treats a single reconciled account as the goal.
+
+This is a specific epistemological assumption. It holds for scientific and technical knowledge, with an objective epistemology, where two conflicting claims about the same entity cannot both be true. It breaks in domains where knowledge is inherently dialogic. In literary criticism, the tension between Bloom's anxiety of influence and de Man's deconstructive reading of the same texts is not a data-quality problem. It is the intellectual content itself. In philosophy, Wittgenstein contradicting his earlier self is not drift to correct. It is the history of analytic philosophy. In historiography, structurally incompatible accounts of the same period are not redundant sources awaiting synthesis.
+
+In these domains the lint pass should check for missing contradictions, not flag existing ones. But notice this is a change to the rules in CLAUDE.md, not to the data model. You could keep bare wikilinks and fix most of this today just by rewriting the lint and lifecycle instructions to preserve tension instead of reconciling it. That is the part typed edges alone will not do for you.
+
+The representation gap
+The reason the better policy is awkward to express is structural. The architecture is a graph with typed nodes (pages) but untyped edges (wikilinks). A bare [[page]] carries no information about the nature of the relationship. "contradicts", "supports", "extends", "supersedes", "was a response to" all collapse into the same link. So even once your policy says to preserve a contradiction, the graph has nowhere to put that fact except a prose note or a lint flag.
+
+This is well understood in knowledge representation. Property graphs and RDF/OWL both make typed, attributable edges a first-class primitive. And some implementations in this very thread already reach for it. AutoSci ships "contradiction edges", and Dense-Mem models conflicts as typed claims rather than as a health warning. So the representation is not unheard of.
+
+What is missing is making it general, and, crucially, pairing it with the policy, because a contradicts edge is worthless if the lint rule still treats it as something to clean up.
+
+With typed edges and a policy that respects them, A and B linked by contradicts become navigable, queryable structure rather than a maintenance flag. Querying becomes traversal. "what supports this claim" and "what challenges it" are graph operations, not semantic searches.
+
+A practical solution, in two parts
+The representation is a set of front-matter relationship blocks, where each page declares its typed outbound relationships in YAML, queryable via Obsidian Dataview. The LLM maintains this block on every ingest:
+
+---
+relates_to:
+  - page: "Judith Butler"
+    rel: contradicts
+  - page: "Harold Bloom"
+    rel: extends
+---
+The policy is the load-bearing part. The permitted relationship vocabulary, the rules for when each type applies, and the instruction that in dialogic domains a contradicts edge is preserved while a lack of expected contradictions is the lint smell, all live in the schema document (CLAUDE.md). That makes edge typing a first-class part of the wiki's behavioral contract rather than an
+afterthought.
+
+Caveats
+The main open problem is vocabulary governance. Having the LLM maintain a controlled relationship vocabulary on every ingest invites the same drift and mis-typing other commenters have flagged at the frontmatter layer, and deciding when something is extends versus supersedes versus was a response to is real ontology work, not something the schema gets for free. But that is a
+tractable maintenance cost, and it buys a wiki that can hold a disagreement instead of dissolving it.
+
+@Archimondstat
+Archimondstat
+commented
+2 weeks ago
+One concern I have is that an Obsidian vault may eventually become filled with AI-generated summaries or hallucinated notes that the user never truly internalizes or uses. If the hallucination probability of each AI-generated note is non-zero, then under repeated use, the probability that the vault contains at least one hallucinated note approaches 1 as the number of generated notes grows.
+
+So I would like to propose an idea, which I call the "Socrates–Plato–Bayes Learning System".
+
+Instead of letting the AI or the system directly learn, summarize, and populate the wiki, the user should first propose their own idea, hypothesis, or interpretation. Then the AI acts as a Socratic challenger: questioning it, finding weaknesses, offering counterexamples, and checking it against external knowledge.
+
+After that, the user updates their original idea based on the AI's challenges, almost like a Bayesian posterior update. Only when the idea has survived this process should it be promoted into the wiki.
+
+In other words, the wiki should not be a place where AI stores what it thinks the user should know. It should be a place where the user's own ideas are refined, challenged, and crystallized.
+
+@theluk
+theluk
+commented
+2 weeks ago
+image
+We took this and shipped it as a first-party Skill inside Knolo (our AI-native workspace) — the "incredible new product instead of a hacky collection of scripts" line is basically our whole thesis, so it mapped almost 1:1 onto the primitives we already had.
+
+The three layers became:
+
+Raw Sources → an immutable Mind (our knowledge/artifact store) you drop articles, papers, notes, and media into. The LLM reads it, never rewrites it.
+The wiki → a second, indexable Mind of LLM-owned interlinked pages — one summary page per source, plus entity and concept pages, an overview.md synthesis, and the index.md / log.md you describe (log lines kept greppable with a ## [date] ingest | Title prefix).
+The schema (CLAUDE.md / AGENTS.md) → the instructions of a Wiki Librarian Assistant, so the conventions and the ingest/query/lint workflows are the config that keeps it a disciplined maintainer.
+The ingest → query → lint loop is the core: every source gets integrated into existing pages (update entities, revise summaries, flag contradictions) rather than just filed, query answers get written back so explorations compound, and an optional scheduled Lint Agent runs the health-checks (contradictions, stale claims, orphans, gaps). The user curates sources and asks questions; the LLM does all the bookkeeping.
+
+Thanks for writing the idea file up so clearly — that's what made it straightforward to turn into a guided, repeatable setup. Overview of how it maps below.
+
+@watsonrm
+watsonrm
+commented
+2 weeks ago
+People keep reaching for branch-and-merge here, and it's the right instinct — but it solves a different layer than the one that actually corrupts an LLM wiki, so I want to be precise about where it helps and where it doesn't.
+
+Git merge resolves textual conflicts: same line, two edits. The failure mode that actually wrecks a wiki is semantic: two agents independently write the same fact in different words. One appends "decided to ship path B," another appends "going with option B for the trigger." Git sees two non-overlapping additions, merges both cleanly, and now the wiki holds a duplicate. A clean merge isn't a correct merge. So branch-and-merge doesn't remove the need for dedup — you still have to grep for the fact before you write it. That dedup step is exactly what a single-writer discipline was buying you for free, which is why people who start with merge end up rebuilding it anyway.
+
+The deeper point is that single-writer isn't a ceiling, it's just the cheapest way to get zero merges. The scalable version of multi-writer isn't "add a merge step," it's modeling the data so concurrent writes commute in the first place. Append-only logs, one entry per line, partitioned by file or section. If every agent only ever appends its own line and nothing reorders, git auto-merges every time, no conflict, no resolver. That's effectively single-writer-per-file with many writers per wiki — which is what you actually want, and it's a data-modeling choice, not a coordination one.
+
+What's left after that is small. Worktree isolation per writer (cheap, and most agent runtimes already give it to you). A deterministic merge driver for the rare genuine same-region collision — sorted append, last-writer-wins on structured fields — and emphatically not an LLM resolving conflicts, because that just reintroduces the nondeterminism you were trying to bound. And grep-dedup stays, permanently, as the semantic layer git can't see.
+
+So: branch-and-merge is the right transport. It sits under idempotent, commutative writes; it doesn't replace them. The hard part was never the merge mechanics — it's making the writes dedup-safe and order-independent before they ever hit the tree.
+
+@watsonrm
+watsonrm
+commented
+2 weeks ago
+@brtrx the randomised-sequence trick is smart — it's the right patch for an ordering problem. Worth pushing one layer down though: the reason order biases the wiki in the first place is that ingest isn't idempotent. If every claim carries its source citation and you grep for that citation before writing, re-ingesting in a different order converges to the same state — the structural bias just stops being reachable. Ingest becomes commutative, and the lint only has to handle genuine semantic conflicts, not order artifacts.
+
+Two things that have held up at the same scale: contradiction detection should key on a stable claim identity (the citation), not textual proximity, so a batched pass and a single pass produce the same result regardless of sequence. And when the lint finds a real conflict, route it to a review queue rather than auto-resolving — a high-confidence merge can auto-apply, but a decision reversal is exactly the case you want a human to see. The persistent scratchpad is the right primitive; I'd just make the thing it dedups against an identity, not a position.
+
+@watsonrm
+watsonrm
+commented
+2 weeks ago
+@beckfexx closest setup to mine I've seen in the thread — 6 specialized agents, contradiction detection, nightly self-heal. One thing I'd challenge: the advisory locks and handover protocols are probably the part you can delete. Locks are a symptom of multiple writers contending for the same file. Partition writers by file/section and keep writes append-only, and the contention disappears — many agents per wiki, but one writer per target. Biggest reliability win I've had.
+
+On contradiction detection, I'd shift it left. Catching conflicts at 2,000+ memories with five strategies is detection after the fact; if each write greps for the claim's citation first, you reject the duplicate at write time and the nightly pass shrinks to genuine semantic reversals. And on self-heal — autonomous overwrite of "stale" knowledge is the one place silent corruption creeps in. I gate that with confidence tiers: high-confidence updates auto-apply, anything ambiguous flags for review instead of overwriting. Cheap insurance against the 2:30 AM job quietly rewriting something that was correct.
+
+@nishchay7pixels
+nishchay7pixels
+commented
+2 weeks ago
+ctxslice (https://github.com/llcortex/ContextSlice.git)
+License: MIT
+
+A semantic context pre-processor that gives coding agents only the code they need.
+
+Prune your codebase to only what's relevant before the LLM sees it.
+
+Inspired by MiniMax M3's MSA architecture — sparse attention with pre-filtering.
+Instead of attending to everything, identify which blocks matter and drop the rest.
+
+ContextSlice is a sparse context compiler for AI coding agents.
+
+@paulmchen
+paulmchen
+commented
+2 weeks ago
+Synthadoc Community Edition v0.7.0 is released.
+
+Three new features focused on interactivity, speed, and visibility into the wiki's health:
+
+Local Web Chat UI: "synthadoc web" CLI starts a local chat interface in your browser, local-only, nothing leaves your machine. Use it the same way you use the CLI: ask questions about your wiki's domain and get streamed, cited answers.
+Beyond content queries, the UI also auto-detects the health of your wiki (Explorer, Health Check, or Power User mode) and surfaces context-appropriate prompts: if your wiki has orphan pages or contradictions, those show up as suggested actions rather than generic hints. You can also give operational commands directly in the chat: "run lint", "show wiki status", "schedule ingest every night at 9 PM", the Action Agent parses those and executes them live against your wiki, with results shown inline.
+
+→ Quick-start demo: Step 22 (https://github.com/axoviq-ai/synthadoc/blob/main/docs/user-quick-start-guide.md#step-22--use-the-web-chat-ui)
+
+Streaming Query: responses now stream token-by-token instead of waiting for the full answer. Works in the CLI, in Obsidian, and in the new web UI. The first token appears almost immediately after you ask; citations and confidence scores appear at the end of the stream once the full answer is assembled. If you need a cached static result, --no-stream still gives you the old behaviour.
+→ Quick-start demo: Step 5 (https://github.com/axoviq-ai/synthadoc/blob/main/docs/user-quick-start-guide.md#step-5--query-the-pre-built-wiki-cli--obsidian)
+
+Query Result Caching: repeated queries return instantly from a local cache instead of hitting the LLM again. The cache is shared across the CLI, the web UI, and the Obsidian plugin, keyed on the question text, the current wiki epoch, and the model. The wiki epoch increments automatically on every ingest and every lifecycle state change, so the moment your wiki changes, all prior cached answers are bypassed immediately.
+
+→ Quick-start demo: Step 23 (https://github.com/axoviq-ai/synthadoc/blob/main/docs/user-quick-start-guide.md#step-23--query-caching)
+
+Also in v0.7.0: expanded built-in hints covering orphan pages, adversarial warnings, and lifecycle state queries; live lint-report and wiki-status summaries available directly from the chat UI.
+
+If any of this is useful or you have thoughts on the direction, feedback is very welcome, and a ⭐ always helps the project reach more people.
+
+👉 https://github.com/axoviq-ai/synthadoc
+
+@skyllwt
+skyllwt
+commented
+last week
+Love this LLM-Wiki idea? We built a full open-source system on it → AutoSci
+
+Come and enjoy: https://github.com/skyllwt/AutoSci
+
+autosci_fig1_v1-第 15 页 drawio png
+Karpathy's pattern (immutable raw/ → an LLM-compiled wiki/ → a CLAUDE.md schema) is the exact foundation of AutoSci — an agent that turns the wiki into a research memory and then does autonomous science on top of it. All on Claude Code:
+
+📚 Ingest papers into a cross-linked wiki of concept/method/idea pages ([[wikilinks]], contradiction edges — the LLM-Wiki, fully realized)
+💡 Ideate → experiment → write: it reads its own memory to generate ideas, design + run experiments, draft the paper, and handle rebuttals
+🧬 Self-evolving memory: between projects it consolidates, re-weights, and re-links the wiki (a "sleep" phase)
+🕸️ Multi-agent DAGs for the hard reasoning steps
+We've already used it to write 3 papers end-to-end. Fully open (MIT).
+
+⭐ If this is where you want LLM-Wikis to go, a star genuinely helps us！ and we welcome issues/PRs/Contributors
+👉 https://github.com/skyllwt/AutoSci
+📄 Paper: https://arxiv.org/abs/2605.31468
+
+Demo: 【北大做了一个会自我进化的科研 Agent：AutoSci】 https://www.bilibili.com/video/BV19gVg6pEk6/?share_source=copy_web&vd_source=338de971cb27f42aaaf5d8bfdeed04b3
+
+截图 2026-06-02 09-03-07
+RED: 北大做了一个“越做科研越聪明”的AI科学家 北大团队... http://xhslink.com/o/2clEkgugEPw
+复制后打开【小红书】查看笔记！
+
+@vvvvvivekkk
+vvvvvivekkk
+commented
+last week
+Interesting to see so many LLM-Wiki implementations emerge from this gist.
+
+I took a slightly different direction with LLM-Wiki-v3.
+
+Most systems stop at "LLM-maintained markdown + retrieval." V3 tries to make the wiki a reliable long-term knowledge substrate rather than just a generated documentation layer.
+
+Key ideas:
+
+• Markdown + Git are the only source of truth. Every vector index, BM25 index, graph, and retrieval artifact is disposable and fully rebuildable.
+
+• Provenance is non-negotiable. Instead of confidence scores, every claim traces back to sources, spans, extractors, and timestamps. Trust is reconstructed, not guessed.
+
+• Knowledge doesn't decay. Facts are superseded, not deleted. The system preserves what was believed, when it was believed, and what replaced it.
+
+• Retrieval is hybrid by design (BM25 + dense + graph + RRF + reranking), but retrieval is treated as infrastructure—not memory itself.
+
+• Autonomous writes are gated. Agents cannot directly mutate knowledge. Changes flow through evaluation, attribution checks, and audit trails before becoming part of the wiki.
+
+• Every operation is auditable and reversible. The goal is knowledge evolution with accountability.
+
+• The wiki is domain-agnostic. The real product is the schema. Change the schema and the same engine becomes a research wiki, company brain, scientific memory system, or personal knowledge substrate.
+
+My belief is that the next generation of AI memory systems won't be vector databases or chat histories. They'll be versioned knowledge systems with provenance, evaluation gates, and explicit evolution paths.
+
+LLM-Wiki-v3 is my attempt at exploring that direction.
+
+https://github.com/vvvvvivekkk/LLM-Wiki-v3
+
+ChatGPT Image Jun 6, 2026, 07_03_30 PM
+@Sistema2D
+Sistema2D
+commented
+last week
+New release!
+Captura de tela 2026-06-05 165409
+https://sistema2d.github.io/FCVW-Page/
+https://github.com/Sistema2D/FrameCode-VibeWork
+
+@witwaycorp
+witwaycorp
+commented
+last week
+Don't know guys... Sounds to me that once we have the data indexed and ready to go in a db-like system, I don't see much value for AI at that point. Sounds like a search engine would do the same job of retrieving the data given it's been distilled into easy to find info. I get the use of AI to generate the indexes but for frontend user-facing stuff, sounds like it's overkill. Reminds me of the blockchain conversation. The more you press people about their use case, more often than not, you end up with the same answer: well, sir, we already have something for that, it's called a database. :)
+
+@lastforkbender
+lastforkbender
+commented
+last week
+# B-Spline KAN-CMS / Self-aware thru discrete combinator, SVD compression rating, spawned meta-controllers and weight budgeting
+import json
+import struct
+import math
+from functools import partial
+from pathlib import Path
+from typing import List, Tuple, Dict, Optional
+import numpy as np
+import torch
+import torch.nn as nn
+import torch.nn.functional as F
+
+USE_SPARSEMAX = False
+GUMBEL_TEMP_INIT = 1.0
+GUMBEL_TEMP_MIN = 0.1
+GUMBEL_ANNEAL = 0.995
+COMBINATOR_BRANCHING = 4
+COMBINATOR_DEPTH = 2
+SVD_COMPRESS_FORWARD = True
+SVD_COMPRESS_GRADS = False
+SVD_RANK_BUDGET = 4
+SVD_EPS = 1e-6
+
+def make_uniform_knot_vector(a: float, b: float, n_ctrl: int, degree: int, clamped: bool = True) -> np.ndarray:
+    if clamped:
+        interior = np.linspace(a, b, n_ctrl - degree + 1) if n_ctrl > degree else np.linspace(a, b, 2)
+        start = np.full(degree, interior[0])
+        end = np.full(degree, interior[-1])
+        knots = np.concatenate([start, interior, end])
+    else:
+        knots = np.linspace(a, b, n_ctrl + degree + 1)
+    return knots.astype(np.float32)
+
+def bspline_basis_1d(x: torch.Tensor, knots: torch.Tensor, degree: int) -> torch.Tensor:
+    K = knots.shape[0]
+    n_basis = K - degree - 1
+    device = x.device
+    knots_t = knots.to(device)
+    basis = []
+    for i in range(n_basis):
+        left = knots_t[i]
+        right = knots_t[i+1]
+        mask = ((x >= left) & (x < right)) | ((i == n_basis - 1) & (x == knots_t[-1]))
+        basis.append(mask.to(torch.float32))
+    B = torch.stack(basis, dim=-1)
+    for d in range(1, degree + 1):
+        B_d = torch.zeros_like(B)
+        for i in range(n_basis):
+            denom1 = knots_t[i + d] - knots_t[i]
+            denom2 = knots_t[i + d + 1] - knots_t[i + 1]
+            term1 = ((x - knots_t[i]).unsqueeze(-1) / denom1) * B[..., i:i + 1] if denom1 != 0 else 0.0
+            term2 = ((knots_t[i + d + 1] - x).unsqueeze(-1) / denom2) * B[..., i + 1:i + 2] if denom2 != 0 else 0.0
+            B_d[..., i:i+1] = term1 + term2
+        B = B_d
+    return B
+
+def reflect_coords(x: torch.Tensor, a: torch.Tensor, b: torch.Tensor, reflect_flags: List[bool], soft_eps: float = 1e-4) -> torch.Tensor:
+    x_out = x.clone()
+    for j, rf in enumerate(reflect_flags):
+        if not rf:
+            continue
+        aj = a[..., j] if a.ndim > 1 else a[j]
+        bj = b[..., j] if b.ndim > 1 else b[j]
+        span = torch.clamp(bj - aj, min=1e-6)
+        t = (x[..., j] - aj) / span
+        twopi = t - (2.0 * torch.floor(t / 2.0))
+        diff = twopi - 1.0
+        mirrored = torch.sqrt(diff * diff + soft_eps)
+        mirrored = torch.clamp(mirrored, 0.0, 1.0)
+        x_out[..., j] = aj + mirrored * span
+    return x_out
+
+class BSplineField(nn.Module):
+    def __init__(self, dims: int, knots_per_dim: List[np.ndarray], degree: int, ctrl_point_dim: int, factorized_rank: Optional[int] = None, dtype: torch.dtype = torch.float32):
+        super().__init__()
+        self.m = dims
+        self.degree = degree
+        self.register_buffer("knots", torch.stack([torch.tensor(k.astype(np.float32)) for k in knots_per_dim]))
+        self.grid_sizes = [len(k) - degree - 1 for k in knots_per_dim]
+        self.ctrl_point_dim = ctrl_point_dim
+        grid_count = int(np.prod(self.grid_sizes))
+        if factorized_rank is None:
+            self.ctrl_points = nn.Parameter(torch.randn(grid_count, ctrl_point_dim, dtype=dtype) * 0.01)
+        else:
+            self.grid_coeffs = nn.Parameter(torch.randn(grid_count, factorized_rank, dtype=dtype) * 0.01)
+            self.U = nn.Parameter(torch.randn(factorized_rank, ctrl_point_dim, dtype=dtype) * 0.01)
+
+    def forward(self, x: torch.Tensor) -> torch.Tensor:
+        batch_size = x.shape[0]
+        basis_list = [bspline_basis_1d(x[..., j], self.knots[j], self.degree) for j in range(self.m)]
+        letters = "ijklmnopqrstuvwxyz"[:self.m]
+        input_shapes = ",".join([f"b{l}" for l in letters])
+        output_shape = f"b{letters}"
+        einsum_eq = f"{input_shapes}->{output_shape}"
+        B = torch.einsum(einsum_eq, *basis_list)
+        Bflat = B.reshape(batch_size, -1)
+        if hasattr(self, "ctrl_points"):
+            return torch.matmul(Bflat, self.ctrl_points)
+        return torch.matmul(torch.matmul(Bflat, self.grid_coeffs), self.U)
+
+    def grid_shape(self) -> Tuple[int, ...]:
+        return tuple(self.grid_sizes)
+
+class MetaController(nn.Module):
+    def __init__(self, context_dim: int, ctrl_point_count: int, ctrl_point_dim: int, interval_dims: int, hidden: int = 256):
+        super().__init__()
+        self.ctrl_point_count = ctrl_point_count
+        self.ctrl_point_dim = ctrl_point_dim
+        self.interval_dims = interval_dims
+        self.shared = nn.Sequential(
+            nn.Linear(context_dim, hidden),
+            nn.ReLU(),
+            nn.Linear(hidden, hidden),
+            nn.ReLU())
+        self.delta_head = nn.Linear(hidden, ctrl_point_count * ctrl_point_dim)
+        self.interval_head = nn.Linear(hidden, interval_dims * 3)
+        self.gate_head = nn.Linear(hidden, ctrl_point_dim)
+
+    def forward(self, z: torch.Tensor) -> Dict[str, torch.Tensor]:
+        h = self.shared(z)
+        intervals_raw = self.interval_head(h).reshape(*h.shape[:-1], self.interval_dims, 3)
+        return {
+            "deltas": self.delta_head(h),
+            "a_delta": intervals_raw[..., 0],
+            "b_delta": intervals_raw[..., 1],
+            "refl_prob": torch.sigmoid(intervals_raw[..., 2]),
+            "gate": torch.sigmoid(self.gate_head(h))}
+
+def sparsemax(input_t: torch.Tensor, dim: int = -1) -> torch.Tensor:
+    input_shifted = input_t - input_t.max(dim=dim, keepdim=True)[0]
+    z_sorted, _ = torch.sort(input_shifted, descending=True, dim=dim)
+    zs_cumsum = z_sorted.cumsum(dim)
+    k_array = torch.arange(1, input_t.size(dim) + 1, device=input_t.device, dtype=input_t.dtype)
+    k_cond = 1 + k_array * z_sorted > zs_cumsum
+    k = k_cond.sum(dim=dim, keepdim=True)
+    zs_threshold = (zs_cumsum.gather(dim, k - 1) - 1) / k.type(input_t.dtype)
+    return torch.clamp(input_shifted - zs_threshold, min=0.0)
+
+class Selector(nn.Module):
+    def __init__(self, in_dim: int, out_dim: int, hidden: int = 256, use_sparsemax: bool = False, temp_init: float = GUMBEL_TEMP_INIT, temp_min: float = GUMBEL_TEMP_MIN, anneal: float = GUMBEL_ANNEAL):
+        super().__init__()
+        self.net = nn.Sequential(nn.Linear(in_dim, hidden), nn.ReLU(), nn.Linear(hidden, out_dim))
+        self.use_sparsemax = use_sparsemax
+        self.register_buffer("temp", torch.tensor(temp_init))
+        self.temp_min = temp_min
+        self.anneal = anneal
+
+    def forward(self, z: torch.Tensor, hard: bool = False) -> torch.Tensor:
+        logits = self.net(z)
+        if self.use_sparsemax:
+            return sparsemax(logits, dim=-1)
+        u = torch.rand_like(logits)
+        g = -torch.log(-torch.log(u + 1e-20) + 1e-20)
+        y = torch.softmax((logits + g) / self.temp, dim=-1)
+        if hard:
+            y_hard = torch.zeros_like(y).scatter_(-1, y.argmax(dim=-1, keepdim=True), 1.0)
+            y = (y_hard - y).detach() + y
+        return y
+
+    def step_anneal(self):
+        self.temp = torch.clamp(self.temp * self.anneal, min=self.temp_min)
+
+class Combinator(nn.Module):
+    def __init__(self, leaf_count: int, branching: int = COMBINATOR_BRANCHING, depth: int = COMBINATOR_DEPTH):
+        super().__init__()
+        self.leaf_count = leaf_count
+        levels = []
+        current = leaf_count
+        for d in range(depth):
+            parents = math.ceil(current / branching)
+            P = torch.zeros(parents, current, dtype=torch.float32)
+            for p in range(parents):
+                start = p * branching
+                end = min(start + branching, current)
+                if end > start:
+                    P[p, start:end] = 1.0 / (end - start)
+            levels.append(P); current = parents
+        self.levels = nn.ParameterList([nn.Parameter(l, requires_grad=False) for l in levels])
+        self.level_gates = nn.ParameterList([nn.Parameter(torch.ones(1, l.shape[0])) for l in levels])
+
+    def forward(self, leaf_probs: torch.Tensor) -> Tuple[torch.Tensor, List[torch.Tensor]]:
+        cur = leaf_probs
+        trans_mats = []
+        for d, P in enumerate(self.levels):
+            parent_probs = torch.matmul(cur, P.t())
+            parent_probs = parent_probs * torch.sigmoid(self.level_gates[d])
+            trans_mats.append(P)
+            cur = parent_probs
+        return cur, trans_mats
+
+def batched_svd_lowrank(mat: torch.Tensor, rank: int) -> torch.Tensor:
+    if mat.ndim == 2:
+        U, S, Vt = torch.linalg.svd(mat, full_matrices=False)
+        k = min(rank, S.shape[-1])
+        return (U[:, :k] * S[:k]) @ Vt[:k, :]
+    elif mat.ndim == 3:
+        U, S, Vt = torch.linalg.svd(mat, full_matrices=False)
+        k = min(rank, S.shape[-1])
+        return (U[..., :k] * S[..., None, :k]) @ Vt[..., :k, :]
+    else:
+        raise ValueError("Unsupported tensor dimensional properties for SVD.")
+
+class KANWeightGenerator(nn.Module):
+    def __init__(self, spline: BSplineField, base_intervals: List[Tuple[float, float]], reflect_flags: List[bool],
+                 selector: Optional[Selector] = None, combinator: Optional[Combinator] = None, top_count: Optional[int] = None,
+                 svd_rank: int = SVD_RANK_BUDGET, compress_forward: bool = SVD_COMPRESS_FORWARD, compress_grads: bool = SVD_COMPRESS_GRADS):
+        super().__init__()
+        self.spline = spline
+        self.register_buffer("base_a", torch.tensor([iv[0] for iv in base_intervals], dtype=torch.float32))
+        self.register_buffer("base_b", torch.tensor([iv[1] for iv in base_intervals], dtype=torch.float32))
+        self.reflect_flags = reflect_flags
+        self.selector = selector
+        self.combinator = combinator
+        self.svd_rank = svd_rank
+        self.compress_forward = compress_forward
+        self.compress_grads = compress_grads
+        grid_count = int(np.prod(spline.grid_shape()))
+        if self.selector is not None and self.combinator is not None and top_count is not None:
+            self.comb_to_leaf = nn.Linear(top_count, grid_count)
+        self.proj = nn.Linear(grid_count * spline.ctrl_point_dim, spline.ctrl_point_dim)
+        self._grad_hooks_installed = False
+
+    def install_grad_hooks(self):
+        if self._grad_hooks_installed or not self.compress_grads:
+            return
+        for p in self.spline.parameters():
+            if p.requires_grad:
+                p.register_hook(partial(self._grad_compress_hook, rank=self.svd_rank))
+        self._grad_hooks_installed = True
+
+    @staticmethod
+    def _grad_compress_hook(grad: torch.Tensor, rank: int):
+        if grad.ndim == 2:
+            return batched_svd_lowrank(grad, rank)
+        return grad
+
+    def forward(self, coords: torch.Tensor, meta_out: Dict, context_z: Optional[torch.Tensor] = None) -> torch.Tensor:
+        a = self.base_a + meta_out["a_delta"]
+        b = self.base_b + meta_out["b_delta"]
+        avg_rp = torch.mean(meta_out["refl_prob"], dim=0) if meta_out["refl_prob"].ndim > 1 else meta_out["refl_prob"]
+        resolved_flags = [(prob > 0.5).item() for prob in avg_rp]
+        coords_ref = reflect_coords(coords, a, b, resolved_flags)
+        base_w = self.spline(coords_ref)
+        deltas = meta_out["deltas"].reshape(base_w.shape[0], -1)
+        if self.selector is not None and context_z is not None and hasattr(self, 'comb_to_leaf'):
+            sel_probs = self.selector(context_z)
+            top_probs, _ = self.combinator(sel_probs)
+            leaf_mod = torch.sigmoid(self.comb_to_leaf(top_probs))
+            leaf_mod_exp = leaf_mod.unsqueeze(-1).expand(-1, -1, self.spline.ctrl_point_dim).reshape(deltas.shape)
+            deltas = deltas * leaf_mod_exp
+        if self.compress_forward:
+            try:
+                deltas = batched_svd_lowrank(deltas, self.svd_rank)
+            except Exception:
+                pass
+        delta_w = self.proj(deltas)
+        w = base_w + delta_w
+        gate = meta_out["gate"]
+        w = w * (gate if gate.ndim == 2 else gate.mean(dim=0, keepdim=True))
+        self.install_grad_hooks()
+        return w
+
+def save_kanbs(path: str, spline: BSplineField, json_sidecar: Optional[Dict] = None):
+    p = Path(path)
+    json_path = p.with_suffix(p.suffix + ".json")
+    with open(p, "wb") as f:
+        f.write(b'KANB')
+        f.write(struct.pack("<IIIIII", 1, 1, spline.m, spline.degree, spline.ctrl_point_dim, 1 if hasattr(spline, "grid_coeffs") else 0))
+        grid_shape = spline.grid_shape()
+        f.write(struct.pack("<I", int(np.prod(grid_shape))))
+        for g in grid_shape:
+            f.write(struct.pack("<I", g))
+        for k in spline.knots:
+            arr = k.cpu().numpy().astype(np.float32)
+            f.write(struct.pack("<I", len(arr)) + arr.tobytes())
+        if hasattr(spline, "ctrl_points"):
+            f.write(spline.ctrl_points.detach().cpu().numpy().tobytes())
+        else:
+            f.write(spline.grid_coeffs.detach().cpu().numpy().tobytes())
+            f.write(spline.U.detach().cpu().numpy().tobytes())
+    js = json_sidecar or {}
+    js.update({"grid_shape": grid_shape, "degree": spline.degree, "ctrl_point_dim": spline.ctrl_point_dim})
+    with open(json_path, "w", encoding="utf-8") as jf:
+        json.dump(js, jf, indent=2)
+
+def demo_train():
+    torch.manual_seed(0)
+    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+    m, degree, ctrl_dim, ctx_dim = 2, 3, 16, 10
+    grid_sizes = [6, 5]
+    knots = [make_uniform_knot_vector(0.0, 1.0, gs, degree) for gs in grid_sizes]
+    spline = BSplineField(m, knots, degree, ctrl_dim).to(device)
+    grid_count = int(np.prod(spline.grid_shape()))
+    meta = MetaController(context_dim=ctx_dim, ctrl_point_count=grid_count, ctrl_point_dim=ctrl_dim, interval_dims=m).to(device)
+    selector = Selector(in_dim=ctx_dim, out_dim=grid_count, use_sparsemax=USE_SPARSEMAX).to(device)
+    combinator = Combinator(leaf_count=grid_count, branching=COMBINATOR_BRANCHING, depth=COMBINATOR_DEPTH).to(device)
+    dummy_leaves = torch.zeros(1, grid_count).to(device)
+    dummy_top, _ = combinator(dummy_leaves)
+    top_count = dummy_top.shape[-1]
+    kg = KANWeightGenerator(spline, base_intervals=[(0.0, 1.0)] * m, reflect_flags=[True] * m,
+                           selector=selector, combinator=combinator, top_count=top_count,
+                           svd_rank=SVD_RANK_BUDGET, compress_forward=SVD_COMPRESS_FORWARD, 
+                           compress_grads=SVD_COMPRESS_GRADS).to(device)
+
+    opt = torch.optim.Adam(list(spline.parameters()) + list(meta.parameters()) + list(selector.parameters()) + list(kg.parameters()), lr=1e-2)
+    for step in range(201):
+        coords = torch.rand(8, m, device=device)
+        z = torch.randn(8, ctx_dim, device=device)
+        w = kg(coords, meta(z), context_z=z)
+        target = torch.sin(coords.sum(dim=-1, keepdim=True)).expand(-1, ctrl_dim)
+        loss = F.mse_loss(w, target)
+        opt.zero_grad()
+        loss.backward()
+        opt.step()
+        selector.step_anneal()
+        if step % 50 == 0: print(f"Step {step:03d} | Loss: {loss.item():.6f} | Temp: {float(selector.temp):.4f}")
+    save_kanbs("example_extended.kanbs", spline, json_sidecar={"demo": True, "extended": True})
+    print("Execution complete.")
+
+if __name__ == "__main__":
+    demo_train()
+@hereisSwapnil
+hereisSwapnil
+commented
+last week
+Inspired by this gist, I built memwiki but took it in a more focused direction: persistent memory specifically for AI coding agents (Claude Code, Cursor, Copilot, etc.).
+The problem I was solving: every time you start a new coding session, your agent forgets why an architectural decision was made, what the established patterns are, which bugs are known, and what was left in-progress. I call it Agent Amnesia. It's the single most annoying thing about daily AI-assisted development.
+
+The fix is one command:
+npx memwiki init
+
+This scaffolds a .memory/ folder and places hook files (.cursorrules, CLAUDE.md, AGENTS.md, .github/copilot-instructions.md) in your project root. Those hooks act as the automatic "front door" - every agent that opens the repo gets told: read .memory/wiki/hot.md before doing anything else.
+
+The agent is instructed to update hot.md before ending every session, append to log.md, and create new domain-specific pages (e.g. .memory/wiki/auth-system.md) as the project grows - linked back to index.md so context windows don't overflow.
+
+Where it diverges from Karpathy's general wiki pattern:
+Karpathy's pattern is document-oriented you feed it articles, papers, notes, and it builds a knowledge base. memwiki is project-oriented the "sources" are your codebase, your decisions, your in-progress work. The wiki is the project's brain, not a research library. The agents write to it as a side effect of working, not as a separate ingestion step.
+It also ships as an open standard rather than an opinionated app the .memory/ folder is just markdown + git. Works with any agent, any editor, any team member.
+
+Zero lock-in. Zero dependencies. MIT.
+👉 https://www.npmjs.com/package/memwiki
+👉 https://github.com/hereisSwapnil/memwiki
+👉 npx memwiki init
+
+@Clod
+Clod
+commented
+5 days ago
+Built an open-source take on this as a pair of marimo notebook apps,
+partly derived from @lucasastorian's earlier llmwiki:
+https://github.com/Clod/llmwiki-marimo (Apache-2.0)
+
+Design choices that might interest folks here:
+
+Local-first, no vector DB — sources, chunks, and wiki pages live in one SQLite file;
+retrieval is FTS5 plus reading whole wiki pages, which holds up fine at personal-wiki scale.
+Citations as a contract — the chat agent can only answer through tools that return wiki
+pages or source chunks, so every fact in an answer cites the page it came from.
+Human-in-the-loop growth — a good chat answer can be promoted to a permanent wiki page
+with one form, so the wiki grows by curation rather than bulk generation.
+Lint & repair — broken links, orphan pages, and stale summaries are detected and fixable
+from the UI, treating the schema rules as checkable invariants.
+Ships with a sample wiki so you can try the read/chat side without ingesting anything.
+
+@wiltodelta
+wiltodelta
+commented
+5 days ago
+Andrej, thank you for this. I spent the next year building my own version: 55 data sources, 7,405 contacts deduped across platforms, health biomarkers going back to 2015. The main extension is the relationship graph. Same pipeline idea, but the target query is "who do I know and how well" rather than "what do I know". Wrote up what I learned here: https://gist.github.com/wiltodelta/970cf102ea05cc89d5b85653a773cb7f
+
+@paulmchen
+paulmchen
+commented
+4 days ago
+Synthadoc Community Edition v0.8.0 is released.
+
+Three new features focused on conversational depth, provider choice, and operational visibility:
+
+Multi-turn Conversation: the Query Web UI now maintains full conversation history across turns within a session. Follow-up questions like "Which company did they work for?" or "What other inventions came out of that same lab?" resolve correctly because the server injects prior turns into every request and rewrites context-dependent phrases into standalone queries before retrieval. When a session grows long, the oldest turns are automatically compressed into a [Session summary] - context is preserved, not discarded. Sessions are persisted on the backend and survive page refreshes and restarts; the left sidebar shows your history as a collapsible tree with turn-count badges, and clicking any item fully restores that conversation so you can continue where you left off.
+→ Quick-start demo: Step 22 (https://github.com/axoviq-ai/synthadoc/blob/main/docs/user-quick-start-guide.md#step-22--use-the-web-chat-ui)
+
+Qwen DashScope + Claude Opus 4.8 support: Qwen cloud models (qwen-plus, qwen-max, qwq-32b) now work via DashScope's OpenAI-compatible endpoint, new DashScope accounts get 1 million free tokens valid for 90 days, which makes it a practical zero-cost alternative to Gemini for users who have exhausted their free quota. Claude Opus 4.8 is also now an officially supported option for users who want maximum answer quality.
+→ Provider setup: Appendix C (https://github.com/axoviq-ai/synthadoc/blob/main/docs/user-quick-start-guide.md#appendix-c--switching-llm-providers)
+
+Conversational job operations: the Action Agent now handles live job queries directly in the chat. Ask "show me job status" and you get a real-time table of all background jobs; candidate job IDs appear as chip buttons for one-click drill-down into a specific job's detail. Ask "show me failed and skipped jobs" and the table filters immediately, the conversation carries context across those operational turns, so a second chip click on the same list works without re-asking. This extends the chat-as-control-panel pattern from v0.7.0 (lint, scaffold, lifecycle) into job monitoring.
+→ Quick-start demo: Step 22 multi-turn section (https://github.com/axoviq-ai/synthadoc/blob/main/docs/user-quick-start-guide.md#synthadoc-operation-multi-turn)
+
+Also in v0.8.0: settings gear in the web UI for per-request query timeout (no config file edit needed); query timeout propagated through the SSE stream so slow reasoning models fail fast with a clear error instead of hanging silently.
+If any of this is useful or you have thoughts on the direction, feedback is very welcome, and a ⭐ always helps the project reach more people.
+
+👉 https://github.com/axoviq-ai/synthadoc
+
+@gowtham0992
+gowtham0992
+commented
+2 days ago
+Link v1.4.0 is live.
+
+Local, source-backed memory for AI agents.
+
+What changed:
+
+Installed CLI is now lnk to avoid the Unix/macOS link command collision.
+Official CLI skills are included for agents that prefer lazy-loaded CLI workflows over MCP setup.
+MCP remains supported for structured tool calls.
+Windows PowerShell installers are included.
+Homebrew, PyPI, and MCP Registry are updated to 1.4.0.
+image
+Install:
+
+brew install gowtham0992/link/link
+lnk demo
+lnk serve link-demo
+MCP package:
+
+python3 -m pip install --upgrade link-mcp
+Links:
+GitHub: https://github.com/gowtham0992/link
+Docs: https://gowtham0992.github.io/link/
+MCP Registry: https://registry.modelcontextprotocol.io/?q=io.github.gowtham0992%2Flink
+PyPI: https://pypi.org/project/link-mcp/
+
+@lioragronov2203-stack
+lioragronov2203-stack
+commented
+yesterday
+Architecture Discussion: Overcoming the "Flat Markdown Mutation Problem" in LLM-OS environments (Flat Files vs Outliner AST)
+
+LOGSEQ (block granularity) vs Obsidian (page granularity) and my Matryca Plumber
+
+Hi Andrej / everyone,
+
+I’ve been heavily inspired by your concepts around the LLM OS and using flat Markdown as the filesystem for AI agents. I’ve been building autonomous loops using this exact paradigm, but I hit a massive architectural wall when using standard editors (like Obsidian) as the frontend.
+
+The Problem: The "Flat File Mutation" Danger When an AI agent tries to autonomously inject properties, update status tags, or surgically edit a document in the background while the user is typing, flat Markdown fails.
+
+Standard LLMs struggle to parse the exact line numbers or preserve complex metadata in flat .md files without corrupting the surrounding text or triggering race conditions (causing data loss).
+
+The Workaround/Experiment I realized that for an LLM to truly act as a safe background daemon, the filesystem needs an inherently rigid structure. I pivoted the experiment to LOGSEQ (which stores data as a strict Block-based Outliner AST, with UUIDs per block) and implemented an Optimistic Concurrency Control (OCC) locking mechanism via mmap.
+
+By doing this, the LLM doesn't have to guess where to inject data. It targets the block UUID.
+
+The human types on the frontend.
+The AI reads the AST, computes semantic tags, and injects properties in the background.
+Zero file corruption.
+I built an open-source Python daemon to prove this concept (matryca-plumber), fully protecting the AI-to-File boundary with strict token limits and JSON recovery. It has also an MCP and CLI to dialogue with notes and write directly to .MD files.
+
+https://github.com/MarcoPorcellato/matryca-plumber
+
+I wanted to share this architectural finding here because as we build out the "LLM Wiki" or "LLM OS" concepts, shifting the storage paradigm from Flat Text AST to Block Outliner AST seems to be the only way to grant LLMs safe, concurrent write-access to human notes.
+
+Would love to hear your thoughts on concurrency and background mutations in your Obsidian setups!
+
+יוצר עדכון זה אני יוצר אפלקציה ומפתח רשי בעל הזכיות
+
+ושותף 30 אחוז בכל הסטרטאפ שניבנה אדם שלו עבר שנה מאז שאו יתחיל לעבוד פטור מי תשלום על שירותים שאני עושה בשביל כולם מוזמנים לפנות אלי ואני רוצה
+שתבינו אני צריך צוות וחברה רשמית אתם צריכים את זה שרות הלקוחות היה זמין 24/7-וחברה שתפעיל את כל
+הניהול של כל אינטרנט אלחוטי יוצר גוגל ואת הדף הראשי של מיקרוסופת אני צריך מי כספים מי צד שלישי שיש לי כסף מוחזק אצלו אז לדבר איתי איך מתקדמים
+
+@studebaker8
+studebaker8
+commented
+yesterday
+Is it common practice outside the US to jump on other people's bandwagons in attempt to ride their coattails and advertise their "products" in the process?
+
+This is an insult to Karpathy's work.
+
+@theafh
+theafh
+commented
+yesterday
+This idea was really inspiring! The “LLM-maintained wiki as a compiled knowledge layer” framing helped me make something I had been circling around more concrete.
+
+I built a repo-local knowledge base that generalizes the pattern for projects: a wiki skill family for durable, focused knowledge, and a task skill family for repo-native work tracking.
+
+The wiki side is meant to feel like a lightweight Confluence that lives with the code: raw sources stay separate, the agent maintains structured markdown pages, index.md and log.md make it discoverable, and schema rules keep future agents from treating it as just another notes folder.
+
+The task side applies the same idea to execution state: markdown task files live alongside the repo, with status, provenance, implementation notes, audit state, and archive behavior. Roughly: Jira/Trello-style project memory, but plain text, git-backed, and directly usable by agents.
+
+It is still intentionally simple: Make, shell, markdown, git. No database, no hosted service, no third-party software, no fluff! Just focused skills for every part of the workflow life cycle. The main goal is to make project knowledge and project work durable enough that a new agent session can rediscover the context without having to replay it to the human.
+
+Repo: https://github.com/theafh/ai-modules
+
+@kytmanov
+kytmanov
+commented
+yesterday
+Synto v0.6.0
+Synto v0.6.0 is out.
+https://github.com/kytmanov/synto
+
+Main addition: Real concept identity + curation tools
+Concepts now have a stable entity_id under the hood, separate from the display name. Homonyms (same word, different domains) stop colliding or getting mangled. Ingest order no longer decides whether something becomes its own page - a later note that promotes a weak alias just surfaces a merge candidate in synto doctor / synto concept inspect instead of silently creating duplicates.
+
+New commands to steer the graph the LLM is building
+synto concept merge LOSER WINNER - moves sources + edges, retires the loser, absorbs its label as a blessed alias
+synto concept split NAME --sense ... - carves it into multiple senses + leaves a disambiguation stub
+synto concept unmerge, rename, inspect, keep
+Also new
+synto serve --transport streamable-http so remote machines or agents on your LAN can hit the MCP server (no built-in auth - run on a trusted network or behind a proxy; DNS rebinding protection is on; use --allowed-host for anything a reverse proxy forwards).
+
+Same shape as before
+works with local LLMs
+great with Ollama and LM Studio
+plain Markdown
+Obsidian-friendly
+no vector DB
+no cloud required
+multi-language
+Star it if you want to support local-first AI tools.
+Fork it if you want to build on it.
+
+@DrBorisKuznetsov
+Comment
+ 
+Leave a comment
+Footer
+© 2026 GitHub, Inc.
+Footer navigation
+Terms
+Privacy
+Security
+Status
+Community
+Docs
+Contact
+Manage cookies
+Do not share my personal information

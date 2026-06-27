@@ -2210,53 +2210,5 @@ body.about-open .main-content {
     }
 }
 
-/* About Page Styles */
-.about-links-grid {
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
-    gap: 1.25rem;
-    margin-top: 1rem;
-}
 
-.about-link-card {
-    display: flex;
-    align-items: flex-start;
-    gap: 1rem;
-    padding: 1.25rem;
-    background-color: var(--bg-secondary);
-    border: 1px solid var(--border-color);
-    border-radius: 8px;
-    text-decoration: none;
-    color: var(--text-primary) !important;
-    transition: all 0.2s ease;
-}
-
-.about-link-card:hover {
-    border-color: var(--primary);
-    transform: translateY(-2px);
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
-}
-
-.about-link-card i {
-    font-size: 1.5rem;
-    margin-top: 0.2rem;
-    flex-shrink: 0;
-}
-
-.about-link-card div {
-    display: flex;
-    flex-direction: column;
-    gap: 0.25rem;
-}
-
-.about-link-card strong {
-    font-size: 0.95rem;
-    color: var(--text-primary);
-}
-
-.about-link-card span {
-    font-size: 0.8rem;
-    color: var(--text-secondary);
-    line-height: 1.4;
-}
 

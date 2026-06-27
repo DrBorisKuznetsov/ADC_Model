@@ -6,10 +6,11 @@
     <title>ADC Input Stage Simulator | ADC Non-Linearity Analysis</title>
     
     <!-- Styles -->
-    <link rel="stylesheet" href="index.css?v=20260623-heatmap-only">
+    <link rel="stylesheet" href="index.css?v=20260627-save-as">
     
     <!-- Plotly.js CDN -->
     <script src="https://cdn.plot.ly/plotly-2.29.1.min.js"></script>
+    <script src="vendor/jspdf.umd.min.js?v=2.5.1"></script>
     
     <!-- PyScript Wasm CDN -->
     <link rel="stylesheet" href="https://pyscript.net/releases/2024.1.1/core.css">
@@ -234,11 +235,15 @@
         <!-- Main Chart and Results Area -->
         <main class="main-content">
             
-            <!-- Print-Only Header (for PDF report) -->
-            <div class="print-only-header">
-                <h1>ADC Input Stage Simulation Report</h1>
-                <p>Generated on <span id="print-date"></span> by ADC Input Stage Simulator</p>
-            </div>
+            <section class="validation-banner" aria-label="Experimental validation notice">
+                <div class="validation-icon" aria-hidden="true">
+                    <i class="fa-solid fa-flask-vial"></i>
+                </div>
+                <div class="validation-copy">
+                    <strong>Experimental validation build</strong>
+                    <span>Results use a simplified input-circuit model and may contain numerical or modeling errors. Verify critical conclusions with measurements or detailed circuit simulation.</span>
+                </div>
+            </section>
 
             <!-- Tabs Header & Action Controls -->
             <div class="tabs-nav-container">
@@ -269,7 +274,7 @@
                     </div>
                     
                     <!-- Export Report -->
-                    <button class="btn-secondary" onclick="exportReport()" title="Export Report PDF"><i class="fa-solid fa-file-pdf"></i> Report</button>
+                    <button id="report-btn" class="btn-secondary" onclick="saveReportPdf()" title="Save report as PDF"><i class="fa-solid fa-file-pdf"></i> Save PDF</button>
                 </div>
             </div>
 
@@ -849,6 +854,7 @@
                             <div>
                                 <h2>Assumptions and limits</h2>
                                 <ul class="method-list">
+                                    <li>This is an experimental validation build; numerical and modeling errors are possible.</li>
                                     <li>The source is ideal and has no output noise or harmonic distortion.</li>
                                     <li>R<sub>sw</sub> and C<sub>sh</sub> are fixed lumped parameters.</li>
                                     <li>Comparator noise, reference noise, jitter, DNL and INL are not modeled.</li>
@@ -856,13 +862,14 @@
                                     <li>Low-frequency FFT results require enough observed periods; short records can dominate the baseline floor.</li>
                                 </ul>
                                 <div class="method-note">
-                                    <strong>Interpretation rule:</strong> use the tool to compare design directions and identify dominant mechanisms. Validate final hardware with component-specific data and measurement.
+                                    <strong>Interpretation rule:</strong> use the tool to compare design directions and identify dominant mechanisms. Validate final hardware with component-specific data, measurement or detailed circuit simulation.
                                 </div>
                             </div>
                         </section>
                     </div>
                 </div>
             </div>
+
         </main>
     </div>
 
@@ -1052,27 +1059,398 @@
             updateComparePlot();
         }
 
-        // Export printable report
-        function exportReport() {
-            // Set current date
-            document.getElementById('print-date').innerText = new Date().toLocaleString();
-            
-            // Temporarily switch theme to light for printing
-            const currentTheme = document.body.getAttribute('data-theme') || 'dark';
-            setTheme('light');
-            
-            // Give Plotly a brief moment to redraw in light theme before printing
-            setTimeout(() => {
-                window.print();
-                // Restore previous theme
-                setTheme(currentTheme);
-            }, 500);
+        function cleanReportText(value) {
+            return String(value || '').replace(/\s+/g, ' ').trim();
+        }
+
+        function getControlReportValue(control) {
+            if (!control) return '';
+            if (control.tagName === 'SELECT') {
+                return control.options[control.selectedIndex]?.text || control.value;
+            }
+            return control.value || '';
+        }
+
+        function collectReportParameters() {
+            const rows = [];
+            document.querySelectorAll('.sidebar details.input-section').forEach(section => {
+                const groupName = cleanReportText(section.querySelector('summary span')?.textContent || 'Parameters');
+                section.querySelectorAll('.input-group').forEach(group => {
+                    if (group.id === 'custom_drop_group' && getComputedStyle(group).display === 'none') return;
+
+                    const label = cleanReportText(group.querySelector('label')?.textContent);
+                    const control = group.querySelector('input, select');
+                    if (!label || !control) return;
+                    rows.push({
+                        group: groupName,
+                        name: label,
+                        value: getControlReportValue(control)
+                    });
+                });
+            });
+            return rows;
+        }
+
+        function collectReportDiagnostics() {
+            const rows = [];
+            let groupName = '';
+            document.querySelectorAll('.diagnostic-table tr').forEach(row => {
+                const sectionCell = row.querySelector('.diag-section-row th');
+                if (sectionCell) {
+                    groupName = cleanReportText(sectionCell.textContent);
+                    return;
+                }
+
+                const cells = Array.from(row.children).map(cell => cleanReportText(cell.textContent));
+                if (cells.length !== 4 || cells[0] === 'Metric') return;
+                rows.push({
+                    group: groupName,
+                    metric: cells[0],
+                    value: cells[1],
+                    equivalent: cells[2],
+                    comment: cells[3]
+                });
+            });
+            return rows;
+        }
+
+        async function captureReportChartImage(elementId) {
+            const plot = document.getElementById(elementId);
+            if (!plot || typeof Plotly === 'undefined') return null;
+            return Plotly.toImage(plot, {
+                format: 'png',
+                width: 1100,
+                height: 620,
+                scale: 1.25
+            });
+        }
+
+        function getReportPdfFileName(generatedAt) {
+            const safeTimestamp = generatedAt.toISOString().replace(/[:.]/g, '-');
+            return `adc-input-report-${safeTimestamp}.pdf`;
+        }
+
+        function ensurePdfSpace(doc, y, requiredHeight, marginTop = 15, bottom = 282) {
+            if (y + requiredHeight <= bottom) return y;
+            doc.addPage();
+            return marginTop;
+        }
+
+        function addPdfWrappedText(doc, text, x, y, maxWidth, lineHeight = 4.2) {
+            const lines = doc.splitTextToSize(cleanReportText(text), maxWidth);
+            lines.forEach(line => {
+                y = ensurePdfSpace(doc, y, lineHeight);
+                doc.text(line, x, y);
+                y += lineHeight;
+            });
+            return y;
+        }
+
+        function addPdfTable(doc, title, headers, rows, columns, columnWidths, y) {
+            const margin = 14;
+            const bottom = 282;
+            const headerHeight = 7;
+            const lineHeight = 3.7;
+
+            function drawHeader() {
+                doc.setFillColor(235, 238, 241);
+                doc.setDrawColor(205, 211, 218);
+                doc.setTextColor(55, 65, 75);
+                doc.setFont('helvetica', 'bold');
+                doc.setFontSize(7.5);
+                let x = margin;
+                headers.forEach((header, index) => {
+                    doc.rect(x, y, columnWidths[index], headerHeight, 'FD');
+                    doc.text(header, x + 1.5, y + 4.6);
+                    x += columnWidths[index];
+                });
+                y += headerHeight;
+            }
+
+            y = ensurePdfSpace(doc, y, 16);
+            doc.setTextColor(30, 38, 46);
+            doc.setFont('helvetica', 'bold');
+            doc.setFontSize(11);
+            doc.text(title, margin, y);
+            y += 6;
+            drawHeader();
+
+            rows.forEach(row => {
+                doc.setFont('helvetica', 'normal');
+                doc.setFontSize(7.4);
+                const cells = columns.map((column, index) => {
+                    const value = cleanReportText(row[column]);
+                    return doc.splitTextToSize(value || '-', columnWidths[index] - 3);
+                });
+                const rowHeight = Math.max(7, Math.max(...cells.map(lines => lines.length)) * lineHeight + 3);
+                if (y + rowHeight > bottom) {
+                    doc.addPage();
+                    y = 15;
+                    drawHeader();
+                }
+
+                let x = margin;
+                doc.setDrawColor(215, 220, 225);
+                doc.setTextColor(55, 65, 75);
+                cells.forEach((lines, index) => {
+                    doc.rect(x, y, columnWidths[index], rowHeight);
+                    doc.text(lines, x + 1.5, y + 4.7);
+                    x += columnWidths[index];
+                });
+                y += rowHeight;
+            });
+
+            return y + 7;
+        }
+
+        async function buildReportPdfBlob(generatedAt) {
+            const PdfCtor = window.jspdf?.jsPDF;
+            if (!PdfCtor) {
+                throw new Error('PDF engine is not available');
+            }
+
+            const doc = new PdfCtor({
+                orientation: 'portrait',
+                unit: 'mm',
+                format: 'a4',
+                compress: true
+            });
+            const margin = 14;
+            const contentWidth = 182;
+            let y = 16;
+
+            const parameters = collectReportParameters();
+            const diagnostics = collectReportDiagnostics();
+            const warningPanel = document.getElementById('clipping-warning');
+            const warningText = warningPanel?.classList.contains('visible')
+                ? cleanReportText(warningPanel.textContent)
+                : '';
+            const limiter = cleanReportText(document.getElementById('enob-limiter')?.textContent);
+            const detail = cleanReportText(document.getElementById('enob-detail')?.textContent);
+            const validationText = cleanReportText(document.querySelector('.validation-banner')?.textContent);
+
+            doc.setProperties({
+                title: 'ADC Input Stage Simulation Report',
+                subject: 'ADC input stage non-linearity simulation',
+                author: 'ADC Input Model'
+            });
+
+            doc.setTextColor(20, 28, 36);
+            doc.setFont('helvetica', 'bold');
+            doc.setFontSize(17);
+            doc.text('ADC Input Stage Simulation Report', margin, y);
+            y += 7;
+
+            doc.setFont('helvetica', 'normal');
+            doc.setFontSize(8.5);
+            doc.setTextColor(86, 96, 106);
+            y = addPdfWrappedText(doc, `Generated: ${generatedAt.toLocaleString()}`, margin, y, contentWidth);
+            y = addPdfWrappedText(doc, 'Channel: https://www.youtube.com/@High_SNR_Channel', margin, y, contentWidth);
+            y += 3;
+
+            doc.setFont('helvetica', 'bold');
+            doc.setFontSize(10);
+            doc.setTextColor(30, 38, 46);
+            doc.text('Validation notice', margin, y);
+            y += 5;
+            doc.setFont('helvetica', 'normal');
+            doc.setFontSize(8);
+            doc.setTextColor(70, 80, 90);
+            y = addPdfWrappedText(doc, validationText, margin, y, contentWidth, 3.9) + 2;
+
+            if (warningText) {
+                y = ensurePdfSpace(doc, y, 14);
+                doc.setFont('helvetica', 'bold');
+                doc.setTextColor(128, 78, 34);
+                doc.text('Warning', margin, y);
+                y += 5;
+                doc.setFont('helvetica', 'normal');
+                y = addPdfWrappedText(doc, warningText, margin, y, contentWidth, 3.9) + 2;
+            }
+
+            y = ensurePdfSpace(doc, y, 20);
+            doc.setFont('helvetica', 'bold');
+            doc.setFontSize(11);
+            doc.setTextColor(30, 38, 46);
+            doc.text('Summary', margin, y);
+            y += 6;
+            doc.setFont('helvetica', 'bold');
+            doc.setFontSize(8.5);
+            y = addPdfWrappedText(doc, limiter || 'Dominant limiter', margin, y, contentWidth, 4.1);
+            doc.setFont('helvetica', 'normal');
+            doc.setTextColor(70, 80, 90);
+            y = addPdfWrappedText(doc, detail || 'No diagnostic summary was available.', margin, y, contentWidth, 3.9) + 3;
+
+            y = addPdfTable(
+                doc,
+                'Input Parameters',
+                ['Group', 'Parameter', 'Value'],
+                parameters,
+                ['group', 'name', 'value'],
+                [48, 88, 46],
+                y
+            );
+
+            y = addPdfTable(
+                doc,
+                'Numeric Results',
+                ['Group', 'Metric', 'Value', 'Equivalent', 'Comment'],
+                diagnostics,
+                ['group', 'metric', 'value', 'equivalent', 'comment'],
+                [35, 38, 32, 34, 43],
+                y
+            );
+
+            const charts = [
+                ['time-plot', 'Time-domain response'],
+                ['error-plot', 'Residual and settling error'],
+                ['fft-plot', 'Spectrum'],
+                ['cv-plot', 'Capacitance profile']
+            ];
+            doc.setTextColor(30, 38, 46);
+            doc.setFont('helvetica', 'bold');
+            doc.setFontSize(11);
+            y = ensurePdfSpace(doc, y, 14);
+            doc.text('Charts', margin, y);
+            y += 7;
+
+            for (const [elementId, title] of charts) {
+                y = ensurePdfSpace(doc, y, 112);
+                doc.setFont('helvetica', 'bold');
+                doc.setFontSize(8.5);
+                doc.setTextColor(35, 45, 55);
+                doc.text(title, margin, y);
+                y += 4;
+                try {
+                    const imageUrl = await captureReportChartImage(elementId);
+                    if (imageUrl) {
+                        doc.addImage(imageUrl, 'PNG', margin, y, contentWidth, 102);
+                        y += 108;
+                    } else {
+                        doc.setFont('helvetica', 'normal');
+                        y = addPdfWrappedText(doc, 'Chart was not available when the report was generated.', margin, y, contentWidth, 3.8) + 3;
+                    }
+                } catch (error) {
+                    console.warn(`Unable to capture PDF chart ${elementId}`, error);
+                    doc.setFont('helvetica', 'normal');
+                    y = addPdfWrappedText(doc, 'Chart snapshot could not be captured.', margin, y, contentWidth, 3.8) + 3;
+                }
+            }
+
+            doc.setFont('helvetica', 'normal');
+            doc.setFontSize(7.2);
+            doc.setTextColor(110, 118, 126);
+            const pageCount = doc.getNumberOfPages();
+            for (let page = 1; page <= pageCount; page += 1) {
+                doc.setPage(page);
+                doc.text(`ADC Input Model report - page ${page} / ${pageCount}`, margin, 290);
+            }
+
+            return doc.output('blob');
+        }
+
+        async function writePdfBlobToFile(blob, fileName) {
+            if (window.showSaveFilePicker) {
+                try {
+                    const handle = await window.showSaveFilePicker({
+                        suggestedName: fileName,
+                        types: [{
+                            description: 'PDF document',
+                            accept: { 'application/pdf': ['.pdf'] }
+                        }]
+                    });
+                    const writable = await handle.createWritable();
+                    await writable.write(blob);
+                    await writable.close();
+                    return 'save-as';
+                } catch (error) {
+                    if (error?.name === 'AbortError') return 'cancelled';
+                    console.warn('Save As dialog failed, falling back to local server save', error);
+                }
+            }
+
+            try {
+                const response = await fetch('/api/save-report', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/pdf',
+                        'X-Report-File': fileName
+                    },
+                    body: blob
+                });
+                if (response.ok) {
+                    return 'server-saved';
+                }
+            } catch (error) {
+                console.warn('Local report save endpoint is not available', error);
+            }
+
+            const url = URL.createObjectURL(blob);
+            const link = document.createElement('a');
+            link.href = url;
+            link.download = fileName;
+            link.rel = 'noopener';
+            document.body.appendChild(link);
+            link.click();
+            link.remove();
+            window.setTimeout(() => URL.revokeObjectURL(url), 30000);
+            return 'download-requested';
+        }
+
+        async function saveReportPdf() {
+            const reportBtn = document.getElementById('report-btn');
+            const generatedAt = new Date();
+            releaseLoadingOverlay();
+
+            if (reportBtn) {
+                reportBtn.disabled = true;
+                reportBtn.classList.add('is-busy');
+            }
+            setCalcStatus('updating', 'Saving PDF...');
+
+            try {
+                window.dispatchEvent(new Event('resize'));
+                await new Promise(resolve => window.setTimeout(resolve, 120));
+                const blob = await buildReportPdfBlob(generatedAt);
+                const fileName = getReportPdfFileName(generatedAt);
+                const result = await writePdfBlobToFile(blob, fileName);
+
+                if (result === 'save-as') {
+                    setCalcStatus('ready', 'PDF saved');
+                } else if (result === 'server-saved') {
+                    setCalcStatus('ready', 'PDF saved');
+                } else if (result === 'cancelled') {
+                    setCalcStatus('ready', 'PDF save cancelled');
+                } else {
+                    setCalcStatus('ready', 'PDF download requested');
+                }
+            } catch (error) {
+                console.error('PDF export failed', error);
+                setCalcStatus('error', 'PDF export failed');
+            } finally {
+                if (reportBtn) {
+                    reportBtn.disabled = false;
+                    reportBtn.classList.remove('is-busy');
+                }
+            }
+        }
+
+        function releaseLoadingOverlay() {
+            const overlay = document.getElementById('loading-overlay');
+            if (!overlay) return;
+            overlay.classList.add('hidden');
+            overlay.style.opacity = '0';
+            overlay.style.visibility = 'hidden';
+            overlay.style.pointerEvents = 'none';
         }
 
         // Tab switching
         function switchTab(tabId) {
             document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
-            document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+            document.querySelectorAll('.tab-btn').forEach(b => {
+                b.classList.remove('active');
+                b.removeAttribute('aria-current');
+            });
             document.body.classList.toggle('methodology-open', tabId === 'methodology');
             document.body.classList.toggle('library-open', tabId === 'preset-library');
             
@@ -1080,8 +1458,10 @@
             
             // Highlight the clicked tab button
             document.querySelectorAll('.tab-btn').forEach(btn => {
-                if (btn.getAttribute('onclick') && btn.getAttribute('onclick').includes(tabId)) {
+                const onclick = btn.getAttribute('onclick') || '';
+                if (onclick.includes(tabId)) {
                     btn.classList.add('active');
+                    btn.setAttribute('aria-current', 'page');
                 }
             });
             
@@ -1669,6 +2049,48 @@
                 if db_elem:
                     db_elem.innerText = format_decomp_db(bits_value, signed=signed)
 
+            def reset_single_simulation_output(detail):
+                """Clears stale numeric results after a failed parameter validation."""
+                reset_values = {
+                    "metric-enob-loss": "-- bit",
+                    "metric-loss-db": "-- dB",
+                    "metric-enob": "-- bit",
+                    "metric-measured-sinad": "-- dB",
+                    "metric-thd": "-- dB",
+                    "metric-settling": "--",
+                    "metric-settling-sub": "-- LSB",
+                    "metric-ideal-sinad": "-- dB",
+                    "metric-residual-peak": "--",
+                    "metric-residual-rms": "--",
+                    "decomp-baseline-bits": "--",
+                    "decomp-baseline-db": "-- dB",
+                    "decomp-cv-bits": "--",
+                    "decomp-cv-db": "-- dB",
+                    "decomp-settling-bits": "--",
+                    "decomp-settling-db": "-- dB",
+                    "decomp-combined-bits": "--",
+                    "decomp-combined-db": "-- dB",
+                    "decomp-interaction-bits": "--",
+                    "decomp-interaction-db": "-- dB",
+                }
+                for element_id, text in reset_values.items():
+                    elem = js.document.getElementById(element_id)
+                    if elem:
+                        elem.innerText = text
+
+                insight = js.document.getElementById("enob-insight")
+                if insight:
+                    insight.className = "insight-panel insight-summary"
+                js.document.getElementById("enob-limiter").innerText = "No valid result"
+                js.document.getElementById("enob-detail").innerText = detail
+
+                warn_elem = js.document.getElementById("clipping-warning")
+                warn_text = warn_elem.querySelector("span") if warn_elem else None
+                if warn_elem:
+                    warn_elem.classList.add("visible")
+                if warn_text:
+                    warn_text.innerText = detail
+
             def calculate_metrics_from_samples(samples, params, v_ext_reference=None):
                 codes, clip = quantize_samples(samples, V_ref=params['v_ref'], bits=params['bits'])
                 v_rec_local = reconstruct_voltage(codes, V_ref=params['v_ref'], bits=params['bits'])
@@ -2109,7 +2531,11 @@
                     
                     # Hide loader overlay on first load completion
                     if not initialized:
-                        js.document.getElementById("loading-overlay").classList.add("hidden")
+                        overlay = js.document.getElementById("loading-overlay")
+                        overlay.classList.add("hidden")
+                        overlay.style.opacity = "0"
+                        overlay.style.visibility = "hidden"
+                        overlay.style.pointerEvents = "none"
                         initialized = True
                         
                     # Save state to localStorage via JS proxy
@@ -2117,6 +2543,10 @@
                     elapsed_ms = (time.perf_counter() - calc_started_at) * 1000.0
                     set_calc_status("ready", f"Ready {elapsed_ms:.0f} ms")
                 except Exception as e:
+                    reset_single_simulation_output(
+                        "The current parameter combination is outside the valid simulation range. "
+                        "Adjust the input values before using the numeric table."
+                    )
                     set_calc_status("error", "Invalid parameters")
                     show_error("Simulation Error", e, traceback.format_exc())
 

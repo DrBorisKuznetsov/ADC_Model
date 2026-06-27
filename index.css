@@ -975,8 +975,10 @@ body[data-theme="cream"] .diagnostic-table-wrap {
 }
 
 #loading-overlay.hidden {
-    opacity: 0;
-    visibility: hidden;
+    display: none !important;
+    opacity: 0 !important;
+    visibility: hidden !important;
+    pointer-events: none !important;
 }
 
 .spinner {
@@ -1100,10 +1102,20 @@ body[data-theme="cream"] .diagnostic-table-wrap {
 
     .top-actions {
         justify-content: space-between;
+        flex-wrap: wrap;
     }
 
     .calc-status {
         flex: 1;
+    }
+
+    .validation-banner {
+        grid-template-columns: 1fr;
+        gap: 0.5rem;
+    }
+
+    .validation-icon {
+        display: none;
     }
 
     .main-content {
@@ -1229,9 +1241,63 @@ body[data-theme="cream"] .theme-selector {
     border-color: var(--text-secondary);
 }
 
-/* Hidden Print Header */
-.print-only-header {
-    display: none;
+.btn-secondary:disabled,
+.btn-secondary.is-busy {
+    cursor: wait;
+    opacity: 0.68;
+}
+
+.validation-banner {
+    display: grid;
+    grid-template-columns: auto minmax(0, 1fr);
+    align-items: center;
+    gap: 0.75rem;
+    padding: 0.75rem 0.9rem;
+    border: 1px solid var(--border-color);
+    border-left: 3px solid #6f7d87;
+    border-radius: 6px;
+    background: rgba(255, 255, 255, 0.022);
+    color: var(--text-secondary);
+    box-shadow: none;
+}
+
+body[data-theme="light"] .validation-banner,
+body[data-theme="cream"] .validation-banner {
+    background: rgba(255, 255, 255, 0.62);
+    border-left-color: #557a92;
+}
+
+.validation-icon {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 30px;
+    height: 30px;
+    border: 1px solid var(--border-color);
+    border-radius: 50%;
+    color: #557a92;
+    background: rgba(85, 122, 146, 0.08);
+}
+
+.validation-copy {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: baseline;
+    gap: 0.35rem 0.7rem;
+    min-width: 0;
+    line-height: 1.4;
+}
+
+.validation-copy strong {
+    color: var(--text-primary);
+    font-size: 0.82rem;
+    font-weight: 600;
+    white-space: nowrap;
+}
+
+.validation-copy span {
+    color: var(--text-secondary);
+    font-size: 0.82rem;
 }
 
 /* Capacitor Library Styles */
@@ -2148,111 +2214,5 @@ body.library-open .main-content {
 
     .metric-help-link {
         line-height: 1.3;
-    }
-}
-
-/* Print Stylesheet */
-@media print {
-    .print-only-header {
-        display: block;
-        margin-bottom: 2rem;
-        border-bottom: 2px solid #000;
-        padding-bottom: 1rem;
-    }
-    
-    .print-only-header h1 {
-        font-size: 20pt;
-        font-weight: 700;
-        color: #000;
-        margin-bottom: 0.25rem;
-    }
-    
-    .print-only-header p {
-        font-size: 10pt;
-        color: #555;
-    }
-    
-    body {
-        background: #ffffff !important;
-        background-image: none !important;
-        color: #000000 !important;
-        font-size: 10pt !important;
-    }
-    
-    .sidebar, .tabs-nav-container, .top-actions, #btn-run-sweep, .warning-panel, #loading-overlay, .ad-slot {
-        display: none !important;
-    }
-    
-    .app-container {
-        display: block !important;
-    }
-    
-    .main-content {
-        padding: 0 !important;
-        max-height: none !important;
-        overflow: visible !important;
-        width: 100% !important;
-        display: block !important;
-    }
-    
-    .metrics-grid {
-        display: grid !important;
-        grid-template-columns: repeat(4, 1fr) !important;
-        gap: 1rem !important;
-        margin-bottom: 2rem !important;
-        page-break-inside: avoid;
-    }
-    
-    .metric-card {
-        background: #ffffff !important;
-        border: 1px solid #dddddd !important;
-        color: #000000 !important;
-        box-shadow: none !important;
-        padding: 0.75rem !important;
-    }
-    
-    .metric-title {
-        color: #666666 !important;
-        font-size: 8pt !important;
-    }
-    
-    .metric-val {
-        color: #000000 !important;
-        font-size: 14pt !important;
-    }
-    
-    .metric-sub {
-        color: #666666 !important;
-        font-size: 8pt !important;
-    }
-    
-    .graphs-grid {
-        display: block !important;
-        width: 100% !important;
-    }
-    
-    .graph-card {
-        background: #ffffff !important;
-        border: 1px solid #dddddd !important;
-        color: #000000 !important;
-        box-shadow: none !important;
-        margin-bottom: 2rem !important;
-        padding: 1rem !important;
-        page-break-inside: avoid;
-        width: 100% !important;
-    }
-    
-    .graph-title {
-        font-size: 11pt !important;
-        color: #000000 !important;
-        border-bottom: 1px solid #eeeeee;
-        padding-bottom: 0.25rem;
-        margin-bottom: 0.5rem;
-    }
-    
-    .graph-container {
-        height: 280px !important;
-        background: #ffffff !important;
-        border: none !important;
     }
 }

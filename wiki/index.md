@@ -17,17 +17,17 @@
 * **[Эффект DC bias в керамических конденсаторах](file:///g:/Мой%20диск/SNR_Lib/ADC_Model/wiki/concepts/dc_bias.md)** — зависимость емкости $C(V)$ от приложенного постоянного напряжения.
 * **[Нелинейные искажения и метрики (THD, ENOB)](file:///g:/Мой%20диск/SNR_Lib/ADC_Model/wiki/concepts/enob_loss.md)** — расчет потерь эффективной разрядности и гармоник.
 * **[Методология модели входного тракта АЦП](file:///g:/Мой%20диск/SNR_Lib/ADC_Model/wiki/concepts/model_methodology.md)** — схема объекта, определения сигналов и метрик, ablation-декомпозиция и границы применимости интерфейса.
-* **[Численное решение жестких дифференциальных уравнений (ODE)](file:///g:/Мой%20диск/SNR_Lib/ADC_Model/wiki/concepts/stiff_ode.md)** *(заглушка)* — использование методов Radau/BDF для нелинейных цепей.
-* **[Моделирование УВХ и квантования](file:///g:/Мой%20диск/SNR_Lib/ADC_Model/wiki/concepts/sampling_and_quantization.md)** *(заглушка)* — процессы выборки-хранения и АЦП-преобразования.
+* **[Численное решение жестких дифференциальных уравнений (ODE)](file:///g:/Мой%20диск/SNR_Lib/ADC_Model/wiki/concepts/stiff_ode.md)** — использование методов Radau/BDF для нелинейных цепей.
+* **[Моделирование УВХ и квантования](file:///g:/Мой%20диск/SNR_Lib/ADC_Model/wiki/concepts/sampling_and_quantization.md)** — процессы выборки-хранения и АЦП-преобразования.
 
 ---
 
 ## 3. Компоненты и инструменты (`wiki/entities/`)
 Программные сущности, библиотеки и инфраструктура:
-* **[Типы диэлектриков (C0G, X7R, X5R)](file:///g:/Мой%20диск/SNR_Lib/ADC_Model/wiki/entities/dielectric_types.md)** *(заглушка)* — сравнительный анализ характеристик конденсаторов.
+* **[Типы диэлектриков (C0G, X7R, X5R)](file:///g:/Мой%20диск/SNR_Lib/ADC_Model/wiki/entities/dielectric_types.md)** — сравнительный анализ характеристик конденсаторов.
 * **[Математический решатель (Python Solver Core)](file:///g:/Мой%20диск/SNR_Lib/ADC_Model/wiki/entities/python_solver.md)** — архитектура и интерфейсы расчетного ядра.
 * **[WebAssembly SPA Оболочка](file:///g:/Мой%20диск/SNR_Lib/ADC_Model/wiki/entities/wasm_frontend.md)** — сборка через PyScript/Wasm и интеграция Plotly.js.
-* **[Сторонние библиотеки и зависимости](file:///g:/Мой%20диск/SNR_Lib/ADC_Model/wiki/entities/libraries.md)** *(заглушка)* — NumPy, SciPy, Plotly.
+* **[Сторонние библиотеки и зависимости](file:///g:/Мой%20диск/SNR_Lib/ADC_Model/wiki/entities/libraries.md)** — NumPy, SciPy, Plotly.
 
 ---
 

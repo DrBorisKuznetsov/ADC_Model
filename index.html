@@ -260,6 +260,9 @@
                     <button class="tab-btn" onclick="switchTab('methodology')">
                         <i class="fa-solid fa-circle-info"></i> Methodology
                     </button>
+                    <button class="tab-btn" onclick="switchTab('about-author')">
+                        <i class="fa-solid fa-circle-user"></i> About
+                    </button>
                 </nav>
                 
                 <div class="top-actions">
@@ -870,6 +873,76 @@
                 </div>
             </div>
 
+            <!-- Tab 5: About Author -->
+            <div id="about-author" class="tab-content">
+                <header class="method-header">
+                    <div>
+                        <span class="method-eyebrow">Project details</span>
+                        <h1>About the Project & Author</h1>
+                        <p>Background information, social links, and related publications.</p>
+                    </div>
+                    <button class="btn-secondary method-back" onclick="switchTab('single-scenario')" title="Return to Single Point">
+                        <i class="fa-solid fa-arrow-left"></i> Single Point
+                    </button>
+                </header>
+
+                <div class="method-container">
+                    <section class="method-section">
+                        <span class="method-section-index"><i class="fa-solid fa-user"></i></span>
+                        <div>
+                            <h2>Boris Kuznetsov</h2>
+                            <p>Hardware systems designer specializing in analog signal integrity, high-speed PCB layouts, and digital signal processing (DSP) algorithms. Creator and host of the **High SNR Channel** on YouTube.</p>
+                        </div>
+                    </section>
+
+                    <section class="method-section">
+                        <span class="method-section-index"><i class="fa-solid fa-link"></i></span>
+                        <div>
+                            <h2>Official Profiles & Socials</h2>
+                            <div class="about-links-grid">
+                                <a href="https://www.youtube.com/@High_SNR_Channel" target="_blank" class="about-link-card">
+                                    <i class="fa-brands fa-youtube" style="color: #FF0000;"></i>
+                                    <div>
+                                        <strong>High SNR Channel</strong>
+                                        <span>Engineering videos, visual DSP guides, and lab measurements.</span>
+                                    </div>
+                                </a>
+                                <a href="https://github.com/DrBorisKuznetsov" target="_blank" class="about-link-card">
+                                    <i class="fa-brands fa-github"></i>
+                                    <div>
+                                        <strong>GitHub Profile</strong>
+                                        <span>Open-source firmware, CAD libraries, and simulation scripts.</span>
+                                    </div>
+                                </a>
+                                <a href="https://www.linkedin.com/in/drboriskuznetsov" target="_blank" class="about-link-card">
+                                    <i class="fa-brands fa-linkedin" style="color: #0A66C2;"></i>
+                                    <div>
+                                        <strong>LinkedIn Connection</strong>
+                                        <span>Professional experience, hardware teardowns, and industry networking.</span>
+                                    </div>
+                                </a>
+                            </div>
+                        </div>
+                    </section>
+
+                    <section class="method-section">
+                        <span class="method-section-index"><i class="fa-solid fa-book-open"></i></span>
+                        <div>
+                            <h2>Articles & Publications</h2>
+                            <div class="about-links-grid">
+                                <a href="https://highsnr.org/blog/welcome-to-high-snr" target="_blank" class="about-link-card">
+                                    <i class="fa-solid fa-file-lines"></i>
+                                    <div>
+                                        <strong>Welcome to High SNR Portal</strong>
+                                        <span>Our founding article outlining laboratory philosophies, telemetry rules, and design validation methodologies.</span>
+                                    </div>
+                                </a>
+                            </div>
+                        </div>
+                    </section>
+                </div>
+            </div>
+
         </main>
     </div>
 
@@ -1453,6 +1526,7 @@
             });
             document.body.classList.toggle('methodology-open', tabId === 'methodology');
             document.body.classList.toggle('library-open', tabId === 'preset-library');
+            document.body.classList.toggle('about-open', tabId === 'about-author');
             
             document.getElementById(tabId).classList.add('active');
             

@@ -1,83 +1,76 @@
-# Интерактивный симулятор входного тракта АЦП (ADC Input Model)
+# ADC Input Stage Simulator (ADC Input Model)
 
-[![Python Tests](https://github.com/DrBorisKuznetsov/ADC_Model/actions/workflows/python-tests.yml/badge.svg?branch=main)](https://github.com/DrBorisKuznetsov/ADC_Model/actions) <!-- Заглушка для будущих GitHub Actions -->
+[![Python Tests](https://github.com/DrBorisKuznetsov/ADC_Model/actions/workflows/python-tests.yml/badge.svg?branch=main)](https://github.com/DrBorisKuznetsov/ADC_Model/actions)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
-Проект **ADC Input Model** представляет собой интерактивную имитационную модель входного тракта аналого-цифрового преобразователя (АЦП), выполненную на стыке математического моделирования в Python и веб-технологий WebAssembly (Wasm / PyScript).
+An interactive simulation tool for the Analog-to-Digital Converter (ADC) input stage. It models the physical effects of non-linear filter capacitors (such as the DC bias effect in MLCC Class II dielectrics like X7R and X5R) and sampling switch settling dynamics on ADC performance metrics (THD, SNR, SINAD, ENOB).
 
-Инструмент разработан для инженеров-схемотехников и разработчиков систем сбора данных. Он позволяет оценить влияние нелинейной емкости фильтрующих керамических конденсаторов (эффект DC bias в MLCC X7R/X5R) и процессов недоустановления ключа выборки на динамические характеристики АЦП (THD, SNR, SINAD, ENOB).
-
----
-
-## Основные возможности
-
-1. **Моделирование процессов во временной области**:
-   - Точное описание двух фаз работы УВХ: *выборка* (ключ замкнут) и *преобразование* (ключ разомкнут).
-   - Использование жестких ОДУ решателей: высокоточного неявного метода `Radau` (`scipy`) и специализированного быстрого полунеявного метода с точной локальной линеаризацией 2x2.
-2. **Моделирование нелинейной емкости $C(V)$**:
-   - Встроенные модели диэлектриков: линейный `C0G`, нелинейные `X7R`, `X5R`, пользовательский `CUSTOM` со свободным спадом и `PRESET_FIT` для аппроксимации реальных коммерческих MLCC (Murata, TDK, Samsung, AVX, Kemet, Taiyo Yuden).
-3. **Спектральный анализ (FFT)**:
-   - Расчет THD, SNR, SINAD и эффективной разрядности (ENOB) с применением 4-точечного сглаживающего окна Блэкмана-Харриса и компенсацией его шумовой полосы.
-4. **Диагностика и декомпозиция потерь**:
-   - Метод *ablation-анализа* для разложения суммарных потерь ENOB на составляющие: вклад нелинейности $C(V)$, вклад недоустановления ключа и их взаимное влияние (Interaction).
-5. **N-мерное сканирование (Design Space Sweep)**:
-   - Построение тепловых карт безопасных зон функционирования АЦП по двум выбранным параметрам.
-6. **Генерация отчетов**:
-   - Быстрый экспорт векторного PDF-отчета со всеми таблицами результатов и графиками прямо из браузера.
+The simulator is built with a Python mathematical core running in the browser via WebAssembly (PyScript/Pyodide) for zero-dependency client-side execution.
 
 ---
 
-## Архитектура проекта
+## Features
 
-Проект разделен на три основных слоя:
-
-- **Математическое ядро (Python)**:
-  - `src/solver.py` — генератор сигналов, нелинейные модели емкостей и решатели систем дифференциальных уравнений.
-  - `src/analyzer.py` — БПФ-метрика, расчет ENOB, декомпозиция потерь и расчет многомерной сетки.
-- **Интерактивный веб-интерфейс (Wasm / SPA)**:
-  - `index.html`, `index.css` — графическая оболочка, запускающая Python-код прямо в браузере с помощью PyScript/Pyodide без внешнего сервера. Визуализация графиков построена на Plotly.js.
-  - `serve_app.py` — локальный сервер разработки с поддержкой автоматической записи PDF-отчетов.
-- **База знаний LLM-Wiki**:
-  - Каталог `wiki/` содержит подробные математические выкладки, описание концепций жесткости ОДУ, УВХ, квантования и типов диэлектриков.
+1. **Time-Domain Simulation**:
+   - Accurately models the sample-and-hold (S&H) circuit behavior during the *acquisition* (switch closed) and *conversion* (switch open) phases.
+   - Utilizes stiff ODE solvers: high-accuracy implicit `Radau` solver (`scipy`) and a custom, ultra-fast semi-implicit scheme with exact 2x2 local linearization.
+2. **Non-linear Capacitor Model ($C(V)$)**:
+   - Supports linear `C0G` and non-linear `X7R`, `X5R`, `CUSTOM`, and `PRESET_FIT` capacitor profiles.
+   - Includes real commercial MLCC presets (Murata, TDK, Samsung, AVX, Kemet, Taiyo Yuden) loaded dynamically from a unified catalog.
+3. **Spectral Analysis (FFT)**:
+   - Computes THD, SNR, SINAD, and ENOB using a 4-term Blackman-Harris window with noise power bandwidth correction.
+4. **ENOB Loss Diagnostics & Ablation**:
+   - Decomposes total dynamic range loss into specific contributors: $C(V)$ non-linearity, acquisition settling error, and their cross-coupling interaction.
+5. **N-Dimensional Design Space Sweep**:
+   - Generates interactive heatmaps to map safe operating regions across parameter combinations (e.g., $R_{ext}$ vs. $C_{ext}$).
+6. **PDF Reports**:
+   - Generates and downloads vector PDF reports including all numeric results, active settings, and Plotly chart snapshots.
 
 ---
 
-## Быстрый старт
+## Web Application
 
-### Вариант 1. Запуск в браузере (без установки)
-Вы можете открыть файл `index.html` напрямую в любом современном браузере. Все вычисления будут выполняться на вашем компьютере локально через WebAssembly.
+The interactive simulator is designed to run as a client-side Single-Page Application (SPA) and is published online as a web resource. Since all computations (including the Python-based solver) execute inside the browser using WebAssembly, the client browser handles 100% of the workload.
 
-Для полноценной работы с экспортом отчетов запустите локальный сервер:
+For local offline development and report testing, the workspace includes a helper server script:
 ```bash
 python serve_app.py
 ```
-Приложение будет доступно по адресу: [http://127.0.0.1:8000](http://127.0.0.1:8000).
 
-### Вариант 2. Использование Python-ядра локально
-Для работы со скриптами анализа и верификации установите зависимости:
+---
+
+## Python Math Core
+
+The underlying simulation algorithms can also be run locally using the Python source files for batch simulations and verification.
+
+### Installation
+Install the required dependencies:
 ```bash
 pip install -r requirements.txt
 ```
 
----
-
-## Тестирование и верификация
-
-### Запуск модульных тестов
-Покрытие тестами алгоритмов генерации, ОДУ-интегрирования и спектрального анализа запускается командой:
+### Running Unit Tests
+Validate the solver, quantizer, and spectral analysis components:
 ```bash
 python -m unittest discover -s tests
 ```
 
-### Физическая верификация математической модели
-Запуск скрипта верификации, сравнивающего искажения сигналов на C0G, X7R и X5R диэлектриках:
+### Physical Verification
+Run the verification script to simulate and compare C0G, X7R, and X5R dielectrics under identical conditions:
 ```bash
 python -m src.verify
 ```
-Результаты верификации и графики переходных процессов сохраняются в `wiki/assets/verification_results.png`.
+The results and charts are saved to `wiki/assets/verification_results.png`.
 
 ---
 
-## Ссылки и материалы
-* **База знаний проекта**: Начните изучение с главного каталога: [wiki/index.md](file:///g:/%D0%9C%D0%BE%D0%B9%20%D0%B4%D0%B8%D1%81%D0%BA/SNR_Lib/ADC_Model/wiki/index.md).
-* **Создатели**: Инженерный YouTube-канал [@High_SNR_Channel](https://www.youtube.com/@High_SNR_Channel).
+## Documentation
+
+Comprehensive mathematical formulations, physical schemas, and component details are maintained in the project's LLM-Wiki:
+* **Index**: [wiki/index.md](file:///g:/%D0%9C%D0%BE%D0%B9%20%D0%B4%D0%B8%D1%81%D0%BA/SNR_Lib/ADC_Model/wiki/index.md)
+* **Log**: [wiki/log.md](file:///g:/%D0%9C%D0%BE%D0%B9%20%D0%B4%D0%B8%D1%81%D0%BA/SNR_Lib/ADC_Model/wiki/log.md)
+
+---
+
+## Channel Reference
+Created in collaboration with the engineering YouTube channel [@High_SNR_Channel](https://www.youtube.com/@High_SNR_Channel).

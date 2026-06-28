@@ -52,9 +52,9 @@ def run_verification():
     for cap_type in dielectrics:
         model = CapacitorModel(cap_type=cap_type, c_nom=C_nom, v_rated=V_rated)
         plt.plot(v_axis, model.get_C(v_axis) * 1e9, label=cap_type, lw=2)
-    plt.title("Характеристики конденсаторов C(V)")
-    plt.xlabel("Напряжение на конденсаторе (В)")
-    plt.ylabel("Емкость (нФ)")
+    plt.title("Capacitance vs. Voltage Characteristics")
+    plt.xlabel("Capacitor Voltage (V)")
+    plt.ylabel("Capacitance (nF)")
     plt.grid(True)
     plt.legend()
     
@@ -109,9 +109,9 @@ def run_verification():
     for cap_type in dielectrics:
         metrics = results[cap_type]['metrics']
         plt.plot(metrics['frequencies']/1e3, metrics['power_spec_db'], label=f"{cap_type} (ENOB: {metrics['enob']:.1f})", alpha=0.7)
-    plt.title("Сравнение спектров мощности FFT")
-    plt.xlabel("Частота (кГц)")
-    plt.ylabel("Мощность (дБ)")
+    plt.title("FFT Power Spectrum Comparison")
+    plt.xlabel("Frequency (kHz)")
+    plt.ylabel("Power (dB)")
     plt.xlim(0, f_s / 2 / 1e3)
     plt.ylim(-140, 5)
     plt.grid(True)
@@ -127,23 +127,23 @@ def run_verification():
     points_to_plot = int(n_cycles_plot * 100) # 100 шагов на цикл
     
     t_ms = sim_c0g['t'][:points_to_plot] * 1e3
-    plt.plot(t_ms, sim_c0g['v_in'][:points_to_plot], 'k--', label="V_in (Вход)", alpha=0.7)
-    plt.plot(t_ms, sim_c0g['v_ext'][:points_to_plot], 'g-', label="V_ext (C0G - линейный)", lw=2)
-    plt.plot(t_ms, sim_x5r['v_ext'][:points_to_plot], 'r-', label="V_ext (X5R - нелинейный)", lw=2)
+    plt.plot(t_ms, sim_c0g['v_in'][:points_to_plot], 'k--', label="V_in (Input)", alpha=0.7)
+    plt.plot(t_ms, sim_c0g['v_ext'][:points_to_plot], 'g-', label="V_ext (C0G - Linear)", lw=2)
+    plt.plot(t_ms, sim_x5r['v_ext'][:points_to_plot], 'r-', label="V_ext (X5R - Nonlinear)", lw=2)
     
     # Точки выборок
     t_s_ms = sim_c0g['t_samples'][:n_cycles_plot] * 1e3
-    plt.scatter(t_s_ms, results['C0G']['sim']['v_samples'][:n_cycles_plot], color='green', marker='o', s=80, zorder=5, label="Отсчеты C0G")
-    plt.scatter(t_s_ms, results['X5R']['sim']['v_samples'][:n_cycles_plot], color='red', marker='x', s=80, zorder=5, label="Отсчеты X5R")
+    plt.scatter(t_s_ms, results['C0G']['sim']['v_samples'][:n_cycles_plot], color='green', marker='o', s=80, zorder=5, label="C0G Samples")
+    plt.scatter(t_s_ms, results['X5R']['sim']['v_samples'][:n_cycles_plot], color='red', marker='x', s=80, zorder=5, label="X5R Samples")
     
     # Отрисовка интервалов выборки (is_closed)
     # Подсветим серым фоном зоны выборки
     for n in range(n_cycles_plot):
-        plt.axvspan(n * (1.0/f_s)*1e3, (n * (1.0/f_s) + T_acq)*1e3, color='blue', alpha=0.1, label="T_acq (Выборка)" if n==0 else "")
+        plt.axvspan(n * (1.0/f_s)*1e3, (n * (1.0/f_s) + T_acq)*1e3, color='blue', alpha=0.1, label="T_acq (Acquisition)" if n==0 else "")
         
-    plt.title("Процессы во временной области (первые 5 периодов дискретизации)")
-    plt.xlabel("Время (мс)")
-    plt.ylabel("Напряжение (В)")
+    plt.title("Time Domain Analysis (First 5 Sampling Periods)")
+    plt.xlabel("Time (ms)")
+    plt.ylabel("Voltage (V)")
     plt.grid(True)
     plt.legend()
     

@@ -1027,6 +1027,14 @@ body[data-theme="cream"] .diagnostic-table-wrap {
     font-family: 'JetBrains Mono', monospace;
 }
 
+.loading-note {
+    max-width: min(420px, calc(100vw - 2rem));
+    color: var(--text-secondary);
+    font-size: 0.88rem;
+    line-height: 1.45;
+    text-align: center;
+}
+
 /* Layout Navigation & Actions */
 .tabs-nav-container {
     display: flex;

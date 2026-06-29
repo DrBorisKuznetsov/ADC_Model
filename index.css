@@ -2127,9 +2127,25 @@ body.about-open .main-content {
 }
 
 @media (max-width: 1024px) {
+    .app-container {
+        flex-direction: column;
+        min-height: auto;
+    }
+
     .sidebar {
+        order: 1;
         width: 100%;
         flex: 0 0 auto;
+        max-height: none;
+        overflow: visible;
+        z-index: auto;
+    }
+
+    .main-content {
+        order: 2;
+        flex: 0 0 auto;
+        max-height: none;
+        overflow: visible;
     }
 
     .method-layout {
@@ -2181,6 +2197,14 @@ body.about-open .main-content {
         font-size: 0.74rem;
     }
 
+    .diagnostic-table th {
+        font-size: 0.58rem;
+        letter-spacing: 0;
+        text-transform: none;
+        white-space: nowrap;
+        overflow-wrap: normal;
+    }
+
     .diagnostic-table th:nth-child(1),
     .diagnostic-table td:nth-child(1) {
         width: 46%;
@@ -2188,16 +2212,22 @@ body.about-open .main-content {
 
     .diagnostic-table th:nth-child(2),
     .diagnostic-table td:nth-child(2) {
-        width: 29%;
+        width: 27%;
         white-space: normal;
         overflow-wrap: anywhere;
     }
 
     .diagnostic-table th:nth-child(3),
     .diagnostic-table td:nth-child(3) {
-        width: 25%;
+        width: 27%;
         white-space: normal;
         overflow-wrap: anywhere;
+    }
+
+    .diagnostic-table th:nth-child(2),
+    .diagnostic-table th:nth-child(3) {
+        white-space: nowrap;
+        overflow-wrap: normal;
     }
 
     .diagnostic-table .diag-section-row th {
@@ -2209,6 +2239,3 @@ body.about-open .main-content {
         line-height: 1.3;
     }
 }
-
-
-

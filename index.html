@@ -1,0 +1,2824 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <!-- Google tag (gtag.js) -->
+    <script async src="https://www.googletagmanager.com/gtag/js?id=G-2LJNY1RE1K"></script>
+    <script>
+      window.dataLayer = window.dataLayer || [];
+      function gtag(){dataLayer.push(arguments);}
+      gtag('js', new Date());
+
+      gtag('config', 'G-2LJNY1RE1K');
+    </script>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ADC Input Stage Simulator | ADC Non-Linearity Analysis</title>
+    
+    <!-- Styles -->
+    <link rel="stylesheet" href="index.css?v=20260629-loading-note">
+    
+    <!-- Plotly.js CDN -->
+    <script src="https://cdn.plot.ly/plotly-2.29.1.min.js"></script>
+    <script src="vendor/jspdf.umd.min.js?v=2.5.1"></script>
+    
+    <!-- PyScript Wasm CDN -->
+    <link rel="stylesheet" href="https://pyscript.net/releases/2024.1.1/core.css">
+    <script type="module" src="https://pyscript.net/releases/2024.1.1/core.js"></script>
+    
+    <!-- FontAwesome Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+</head>
+<body data-theme="light">
+
+    <!-- Wasm Loading Screen -->
+    <div id="loading-overlay">
+        <div class="spinner"></div>
+        <div class="loading-text">Loading Simulator (Wasm & Python)...</div>
+        <div id="loading-step" class="loading-sub">Initializing Pyodide Environment...</div>
+        <div class="loading-note">
+            First launch loads the Python runtime in your browser. Please wait a little longer than on a regular website.
+        </div>
+    </div>
+
+    <!-- Main Application Container -->
+    <div class="app-container">
+        
+        <!-- Parameters Sidebar -->
+        <aside class="sidebar">
+            <div class="logo-container">
+                <div class="logo-icon"><i class="fa-solid fa-wave-square"></i></div>
+                <div>
+                    <span class="logo-text">ADC Input Model</span>
+                    <span class="logo-sub">Simulation Tool</span>
+                </div>
+            </div>
+            
+            <a href="https://highsnr.org/" style="display:block; padding: 10px; margin-bottom: 15px; color: var(--text-secondary); text-decoration: none; border: 1px solid var(--border-color); border-radius: 8px; text-align: center; font-size: 0.9rem; font-weight: 500;">
+                ← Back to Portal
+            </a>
+
+            <a class="channel-card" href="https://www.youtube.com/@High_SNR_Channel" target="_blank" rel="noopener noreferrer" aria-label="Open High SNR YouTube channel">
+                <img src="assets/highsnr-logo.png" alt="High SNR channel logo" class="channel-logo">
+                <span class="channel-copy">
+                    <span class="channel-label">Created by</span>
+                    <span class="channel-title">High SNR Channel</span>
+                    <span class="channel-sub">YouTube engineering videos</span>
+                </span>
+                <i class="fa-brands fa-youtube channel-icon"></i>
+            </a>
+            
+            <!-- Section: Input Signal -->
+            <details class="input-section" open>
+                <summary class="section-title"><span>Input Signal</span><i class="fa-solid fa-chevron-down"></i></summary>
+                <div class="section-content">
+                    <div class="input-group">
+                        <label for="sig_form">Signal Waveform</label>
+                        <select id="sig_form">
+                            <option value="sine" selected>Sine Wave</option>
+                            <option value="square">Square Wave</option>
+                            <option value="triangle">Triangle Wave</option>
+                        </select>
+                    </div>
+                
+                    <div class="input-group">
+                        <label for="sig_amp">Amplitude (V)</label>
+                        <div class="slider-container">
+                            <input type="range" id="sig_amp" min="0.1" max="10.0" step="0.1" value="2.2" oninput="document.getElementById('sig_amp_val').innerText = this.value">
+                            <span id="sig_amp_val" class="slider-val">2.2</span>
+                        </div>
+                    </div>
+
+                    <div class="input-group">
+                        <label for="sig_freq">Frequency (Hz)</label>
+                        <input type="number" id="sig_freq" value="1010" min="10" max="100000">
+                    </div>
+
+                    <div class="input-group">
+                        <label for="sig_offset">DC Offset (V)</label>
+                        <input type="number" id="sig_offset" value="2.5" min="-10" max="10" step="0.1">
+                    </div>
+                </div>
+            </details>
+
+            <!-- Section: External Filter -->
+            <details class="input-section" open>
+                <summary class="section-title"><span>External Filter</span><i class="fa-solid fa-chevron-down"></i></summary>
+                <div class="section-content">
+                    <div class="input-group">
+                        <label for="cap_preset">Capacitor Preset</label>
+                        <select id="cap_preset">
+                        <option value="custom" selected>Custom (Editable)...</option>
+                        <optgroup label="Generic Models">
+                            <option value="generic_c0g">Generic C0G (Linear)</option>
+                            <option value="generic_x7r">Generic X7R (Moderate Bias)</option>
+                            <option value="generic_x5r">Generic X5R (Strong Bias)</option>
+                        </optgroup>
+                        <optgroup label="Murata MLCC">
+                            <option value="murata_grm033_1u_6v3">Murata GRM033 (1µF, 6.3V, X5R)</option>
+                            <option value="murata_grm155_10u_10v">Murata GRM155 (10µF, 10V, X5R)</option>
+                            <option value="murata_grm188_10u_16v">Murata GRM188 (10µF, 16V, X5R)</option>
+                            <option value="murata_grm21b_10u_25v">Murata GRM21B (10µF, 25V, X7R)</option>
+                            <option value="murata_grm31c_10u_100v">Murata GRM31C (10µF, 100V, X7S)</option>
+                            <option value="murata_grm32d_47u_16v">Murata GRM32D (47µF, 16V, X5R)</option>
+                        </optgroup>
+                        <optgroup label="TDK MLCC">
+                            <option value="tdk_c1005_10u_10v">TDK C1005 (10µF, 10V, X5R)</option>
+                            <option value="tdk_c1608_1u_25v">TDK C1608 (1µF, 25V, X7R)</option>
+                            <option value="tdk_c2012_1u_50v">TDK C2012 (1µF, 50V, X7R)</option>
+                            <option value="tdk_c3216_10u_50v">TDK C3216 (10µF, 50V, X7R)</option>
+                        </optgroup>
+                        <optgroup label="Samsung MLCC">
+                            <option value="samsung_cl05a_1u_10v">Samsung CL05A (1µF, 10V, X5R)</option>
+                            <option value="samsung_cl10a_10u_10v">Samsung CL10A (10µF, 10V, X5R)</option>
+                            <option value="samsung_cl21b_10u_25v">Samsung CL21B (10µF, 25V, X7R)</option>
+                            <option value="samsung_cl31b_10u_50v">Samsung CL31B (10µF, 50V, X7R)</option>
+                        </optgroup>
+                        <optgroup label="Kemet MLCC">
+                            <option value="kemet_c0402_100n_25v">Kemet C0402 (100nF, 25V, X7R)</option>
+                            <option value="kemet_c0603_1u_16v">Kemet C0603 (1µF, 16V, X7R)</option>
+                            <option value="kemet_c0805_10u_16v">Kemet C0805 (10µF, 16V, X7R)</option>
+                            <option value="kemet_c1206_10u_50v">Kemet C1206 (10µF, 50V, X7R)</option>
+                        </optgroup>
+                        <optgroup label="Taiyo Yuden MLCC">
+                            <option value="taiyo_emk105_2u2_16v">Taiyo Yuden EMK105 (2.2µF, 16V, X5R)</option>
+                            <option value="taiyo_lmk107_10u_10v">Taiyo Yuden LMK107 (10µF, 10V, X5R)</option>
+                            <option value="taiyo_tmk212_10u_25v">Taiyo Yuden TMK212 (10µF, 25V, X5R)</option>
+                            <option value="taiyo_umk316_10u_50v">Taiyo Yuden UMK316 (10µF, 50V, X5R)</option>
+                        </optgroup>
+                        <optgroup label="Kyocera AVX MLCC">
+                            <option value="avx_0402_1u_10v">Kyocera AVX 0402 (1µF, 10V, X5R)</option>
+                            <option value="avx_0603_10u_10v">Kyocera AVX 0603 (10µF, 10V, X5R)</option>
+                            <option value="avx_0805_10u_25v">Kyocera AVX 0805 (10µF, 25V, X7R)</option>
+                            <option value="avx_1206_10u_50v">Kyocera AVX 1206 (10µF, 50V, X7R)</option>
+                        </optgroup>
+                        </select>
+                    </div>
+
+                    <div class="input-group">
+                        <label for="r_ext">Resistance <i>R</i><sub>ext</sub> (Ω)</label>
+                        <input type="number" id="r_ext" value="200" min="1" max="100000">
+                    </div>
+
+                    <div class="input-group">
+                        <label for="c_ext_nom">Nominal <i>C</i><sub>ext</sub> (nF)</label>
+                        <input type="number" id="c_ext_nom" value="10" min="0.1" max="1000">
+                    </div>
+
+                    <div class="input-group">
+                        <label for="v_rated">Rated Voltage <i>V</i><sub>rated</sub> (V)</label>
+                        <input type="number" id="v_rated" value="5.0" min="0.5" max="100" step="0.5">
+                    </div>
+
+                    <div class="input-group">
+                        <label for="cap_type">Dielectric of <i>C</i><sub>ext</sub></label>
+                        <select id="cap_type">
+                            <option value="C0G">C0G (Linear)</option>
+                            <option value="X7R" selected>X7R (Moderate DC Bias)</option>
+                            <option value="X5R">X5R (Strong DC Bias)</option>
+                            <option value="CUSTOM">Custom (User-defined drop)</option>
+                            <option value="PRESET_FIT" style="display: none;">Preset Fit (Locked)</option>
+                        </select>
+                    </div>
+
+                    <div class="input-group" id="custom_drop_group" style="display: none;">
+                        <label for="custom_drop">Capacitance drop at <i>V</i><sub>rated</sub> (%)</label>
+                        <div class="slider-container">
+                            <input type="range" id="custom_drop" min="10" max="95" step="5" value="50" oninput="document.getElementById('custom_drop_val').innerText = this.value">
+                            <span id="custom_drop_val" class="slider-val">50</span>
+                        </div>
+                    </div>
+                </div>
+            </details>
+
+            <!-- Section: ADC Parameters -->
+            <details class="input-section">
+                <summary class="section-title"><span>ADC Parameters</span><i class="fa-solid fa-chevron-down"></i></summary>
+                <div class="section-content">
+                    <div class="input-group">
+                        <label for="r_sw">Sampling Switch <i>R</i><sub>sw</sub> (Ω)</label>
+                        <input type="number" id="r_sw" value="50" min="1" max="5000">
+                    </div>
+
+                    <div class="input-group">
+                        <label for="c_sh">Sample Capacitance <i>C</i><sub>sh</sub> (pF)</label>
+                        <input type="number" id="c_sh" value="20" min="1" max="1000">
+                    </div>
+
+                    <div class="input-group">
+                        <label for="t_acq">Acquisition Time <i>T</i><sub>acq</sub> (ns)</label>
+                        <input type="number" id="t_acq" value="300" min="5" max="10000">
+                    </div>
+
+                    <div class="input-group">
+                        <label for="f_s">Sampling Rate <i>f</i><sub>s</sub> (kHz)</label>
+                        <input type="number" id="f_s" value="100" min="1" max="10000">
+                    </div>
+
+                    <div class="input-group">
+                        <label for="bits">ADC Resolution</label>
+                        <select id="bits">
+                            <option value="8">8-bit</option>
+                            <option value="10">10-bit</option>
+                            <option value="12">12-bit</option>
+                            <option value="14">14-bit</option>
+                            <option value="16" selected>16-bit</option>
+                            <option value="24">24-bit</option>
+                        </select>
+                    </div>
+
+                    <div class="input-group">
+                        <label for="v_ref">Reference Voltage <i>V</i><sub>ref</sub> (V)</label>
+                        <input type="number" id="v_ref" value="5.0" min="0.1" max="30" step="0.1">
+                    </div>
+
+                    <div class="input-group">
+                        <label for="sim_method">Simulation Method</label>
+                        <select id="sim_method">
+                            <option value="semi_implicit" selected>Semi-Implicit (Fast)</option>
+                            <option value="radau">Radau (High Accuracy)</option>
+                        </select>
+                    </div>
+                </div>
+            </details>
+
+            <aside class="ad-slot ad-slot-sidebar" data-ad-slot="sidebar-300x250" aria-label="Advertisement slot">
+                <span class="ad-label">Advertisement</span>
+                <span class="ad-title">Sponsor Slot</span>
+                <span class="ad-size">300 x 250</span>
+            </aside>
+        </aside>
+
+        <!-- Main Chart and Results Area -->
+        <main class="main-content">
+            
+            <section class="validation-banner" aria-label="Experimental validation notice">
+                <div class="validation-icon" aria-hidden="true">
+                    <i class="fa-solid fa-flask-vial"></i>
+                </div>
+                <div class="validation-copy">
+                    <strong>Experimental validation build</strong>
+                    <span>Results use a simplified input-circuit model and may contain numerical or modeling errors. Verify critical conclusions with measurements or detailed circuit simulation.</span>
+                </div>
+            </section>
+
+            <!-- Tabs Header & Action Controls -->
+            <div class="tabs-nav-container">
+                <nav class="tabs-header">
+                    <button class="tab-btn active" onclick="switchTab('single-scenario')">
+                        <i class="fa-solid fa-chart-line"></i> Single Point
+                    </button>
+                    <button class="tab-btn" onclick="switchTab('design-space')">
+                        <i class="fa-solid fa-cubes"></i> Design Space
+                    </button>
+                    <button class="tab-btn" onclick="switchTab('preset-library')">
+                        <i class="fa-solid fa-book"></i> Library
+                    </button>
+                    <button class="tab-btn" onclick="switchTab('methodology')">
+                        <i class="fa-solid fa-circle-info"></i> Methodology
+                    </button>
+                    <button class="tab-btn" onclick="switchTab('about-author')">
+                        <i class="fa-solid fa-circle-user"></i> About
+                    </button>
+                </nav>
+                
+                <div class="top-actions">
+                    <div id="calc-status" class="calc-status ready" aria-live="polite">
+                        <span class="status-dot"></span>
+                        <span id="calc-status-text">Ready</span>
+                    </div>
+                    <!-- Theme Selector -->
+                    <div class="theme-selector">
+                        <button class="theme-btn" data-theme-val="dark" onclick="setTheme('dark')" title="Dark engineering theme"><i class="fa-solid fa-moon"></i></button>
+                        <button class="theme-btn active" data-theme-val="light" onclick="setTheme('light')" title="Light engineering theme"><i class="fa-solid fa-sun"></i></button>
+                    </div>
+                    
+                    <!-- Export Report -->
+                    <button id="report-btn" class="btn-secondary" onclick="saveReportPdf()" title="Save report as PDF"><i class="fa-solid fa-file-pdf"></i> Save PDF</button>
+                </div>
+            </div>
+
+            <!-- Tab 1: Single Point Analysis -->
+            <div id="single-scenario" class="tab-content active">
+                
+                <!-- Clipping Warning Panel -->
+                <div id="clipping-warning" class="warning-panel">
+                    <i class="fa-solid fa-triangle-exclamation"></i>
+                    <span>WARNING: ADC Clipping Detected! Signal voltage exceeded range [0V, <i>V</i><sub>ref</sub>].</span>
+                </div>
+
+                <section id="enob-insight" class="insight-panel insight-summary">
+                    <div class="insight-primary">
+                        <span class="insight-kicker">Dominant limiter</span>
+                        <strong id="enob-limiter">Awaiting calculation</strong>
+                        <span id="enob-detail">The ENOB diagnosis will appear after the first simulation.</span>
+                    </div>
+                </section>
+
+                <section class="loss-decomp-panel" aria-label="ENOB loss diagnostics">
+                    <div class="loss-decomp-title">
+                        <span>Single Point Numeric Results</span>
+                    </div>
+                    <div class="diagnostic-table-wrap">
+                        <table class="diagnostic-table">
+                            <thead>
+                                <tr>
+                                    <th>Metric</th>
+                                    <th>Value</th>
+                                    <th>Equivalent</th>
+                                    <th>Comment</th>
+                                </tr>
+                            </thead>
+                            <tbody class="diag-section diag-section-main">
+                                <tr class="diag-section-row">
+                                    <th colspan="4">Main result</th>
+                                </tr>
+                                <tr class="diag-group-main">
+                                    <td>
+                                        <button class="metric-help-link" onclick="openMethodology('method-enob-loss')" title="Open ENOB loss definition">
+                                            Total ENOB loss <i class="fa-solid fa-circle-info"></i>
+                                        </button>
+                                    </td>
+                                    <td id="metric-enob-loss">-- bit</td>
+                                    <td id="metric-loss-db">-- dB</td>
+                                    <td>Primary loss value for this operating point.</td>
+                                </tr>
+                                <tr class="diag-group-main">
+                                    <td>
+                                        <button class="metric-help-link" onclick="openMethodology('method-enob')" title="Open ENOB definition">
+                                            Effective ENOB <i class="fa-solid fa-circle-info"></i>
+                                        </button>
+                                    </td>
+                                    <td id="metric-enob">-- bit</td>
+                                    <td id="metric-measured-sinad">-- dB</td>
+                                    <td>Resolution equivalent derived from measured SINAD.</td>
+                                </tr>
+                                <tr class="diag-group-main">
+                                    <td>
+                                        <button class="metric-help-link" onclick="openMethodology('method-thd')" title="Open THD definition">
+                                            Total harmonic distortion <i class="fa-solid fa-circle-info"></i>
+                                        </button>
+                                    </td>
+                                    <td id="metric-thd">-- dB</td>
+                                    <td>THD</td>
+                                    <td>Harmonic content relative to the fundamental.</td>
+                                </tr>
+                                <tr class="diag-group-main">
+                                    <td>
+                                        <button class="metric-help-link" onclick="openMethodology('method-settling')" title="Open settling definition">
+                                            Settling peak <i class="fa-solid fa-circle-info"></i>
+                                        </button>
+                                    </td>
+                                    <td id="metric-settling">--</td>
+                                    <td id="metric-settling-sub">-- LSB</td>
+                                    <td>Analog sample undercharge shown with LSB equivalent.</td>
+                                </tr>
+                            </tbody>
+                            <tbody class="diag-section diag-section-spectrum">
+                                <tr class="diag-section-row">
+                                    <th colspan="4">Spectrum and residual</th>
+                                </tr>
+                                <tr class="diag-group-spectrum">
+                                    <td>
+                                        <button class="metric-help-link" onclick="openMethodology('method-sinad')" title="Open SINAD definition">
+                                            Ideal SINAD <i class="fa-solid fa-circle-info"></i>
+                                        </button>
+                                    </td>
+                                    <td id="metric-ideal-sinad">-- dB</td>
+                                    <td>Target</td>
+                                    <td>Ideal SINAD target for the selected nominal bit depth.</td>
+                                </tr>
+                                <tr class="diag-group-spectrum">
+                                    <td>
+                                        <button class="metric-help-link" onclick="openMethodology('method-residual')" title="Open residual definition">
+                                            Residual peak <i class="fa-solid fa-circle-info"></i>
+                                        </button>
+                                    </td>
+                                    <td id="metric-residual-peak">--</td>
+                                    <td>Peak</td>
+                                    <td>Peak residual after removing the best-fit fundamental.</td>
+                                </tr>
+                                <tr class="diag-group-spectrum">
+                                    <td>
+                                        <button class="metric-help-link" onclick="openMethodology('method-residual')" title="Open residual definition">
+                                            Residual RMS <i class="fa-solid fa-circle-info"></i>
+                                        </button>
+                                    </td>
+                                    <td id="metric-residual-rms">--</td>
+                                    <td>RMS</td>
+                                    <td>RMS residual after the startup samples are discarded.</td>
+                                </tr>
+                            </tbody>
+                            <tbody class="diag-section diag-section-ablation">
+                                <tr class="diag-section-row">
+                                    <th colspan="4">Loss decomposition</th>
+                                </tr>
+                                <tr class="diag-group-ablation">
+                                    <td>
+                                        <button class="metric-help-link" onclick="openMethodology('method-ablation')" title="Open loss decomposition method">
+                                            Baseline floor <i class="fa-solid fa-circle-info"></i>
+                                        </button>
+                                    </td>
+                                    <td id="decomp-baseline-bits">--</td>
+                                    <td id="decomp-baseline-db">-- dB</td>
+                                    <td>Linear C0G and ideal measurement; shows quantization, FFT and record limits.</td>
+                                </tr>
+                                <tr class="diag-group-ablation">
+                                    <td>
+                                        <button class="metric-help-link" onclick="openMethodology('method-cv')" title="Open C(V) model description">
+                                            <i>C</i>(<i>V</i>) only <i class="fa-solid fa-circle-info"></i>
+                                        </button>
+                                    </td>
+                                    <td id="decomp-cv-bits">--</td>
+                                    <td id="decomp-cv-db">-- dB</td>
+                                    <td>Additional loss from nonlinear capacitance with ideal measurement of <i>V</i><sub>ext</sub>.</td>
+                                </tr>
+                                <tr class="diag-group-ablation">
+                                    <td>
+                                        <button class="metric-help-link" onclick="openMethodology('method-ablation')" title="Open loss decomposition method">
+                                            Settling only <i class="fa-solid fa-circle-info"></i>
+                                        </button>
+                                    </td>
+                                    <td id="decomp-settling-bits">--</td>
+                                    <td id="decomp-settling-db">-- dB</td>
+                                    <td>Additional loss from sample undercharge on a linear capacitor.</td>
+                                </tr>
+                                <tr class="diag-group-ablation">
+                                    <td>
+                                        <button class="metric-help-link" onclick="openMethodology('method-ablation')" title="Open loss decomposition method">
+                                            Combined extra <i class="fa-solid fa-circle-info"></i>
+                                        </button>
+                                    </td>
+                                    <td id="decomp-combined-bits">--</td>
+                                    <td id="decomp-combined-db">-- dB</td>
+                                    <td>Total extra circuit loss above the baseline floor.</td>
+                                </tr>
+                                <tr class="diag-group-ablation">
+                                    <td>
+                                        <button class="metric-help-link" onclick="openMethodology('method-ablation')" title="Open loss decomposition method">
+                                            Interaction <i class="fa-solid fa-circle-info"></i>
+                                        </button>
+                                    </td>
+                                    <td id="decomp-interaction-bits">--</td>
+                                    <td id="decomp-interaction-db">-- dB</td>
+                                    <td>Non-additive part: combined minus C(V) only minus settling only.</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </section>
+
+                <aside class="ad-slot ad-slot-horizontal" data-ad-slot="single-scenario-728x90" aria-label="Advertisement slot">
+                    <span class="ad-label">Advertisement</span>
+                    <span class="ad-title">Engineering Tools / Components / Courses</span>
+                    <span class="ad-size">728 x 90</span>
+                </aside>
+
+                <!-- Graphs Grid -->
+                <div class="graphs-grid">
+                    <div class="graph-card full-width">
+                        <div class="graph-title">
+                            <span>Time Domain Waveforms</span>
+                            <span id="time-view-caption" class="loading-sub" style="font-size:0.75rem;"><i class="fa-solid fa-clock"></i> Transient Process</span>
+                        </div>
+                        <div id="time-plot" class="graph-container"></div>
+                    </div>
+
+                    <div class="graph-card full-width">
+                        <div class="graph-title">
+                            <span>ENOB Error View</span>
+                            <span id="error-view-caption" class="loading-sub">Residual in LSB</span>
+                        </div>
+                        <div id="error-plot" class="graph-container graph-container-compact"></div>
+                    </div>
+                    
+                    <div class="graph-card">
+                        <div class="graph-title"><span>Spectral Analysis (FFT Spectrum)</span></div>
+                        <div id="fft-plot" class="graph-container"></div>
+                    </div>
+
+                    <div class="graph-card">
+                        <div class="graph-title"><span>Nonlinear Capacitance <i>C</i>(<i>V</i>) Profile</span></div>
+                        <div id="cv-plot" class="graph-container"></div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Tab 2: Multi-Parametric Analysis -->
+            <div id="design-space" class="tab-content">
+                <div class="graph-card full-width">
+                    <div class="graph-title">Parametric Sweep Settings</div>
+                    
+                    <div class="sweep-axis-grid">
+                        <div class="input-group">
+                            <label>Y-Axis Parameter (Heatmap)</label>
+                            <select id="sweep_axis_y">
+                                <option value="R_ext" selected>Filter Resistance <i>R</i><sub>ext</sub> (10..2000 Ω)</option>
+                                <option value="sig_frequency">Signal Frequency <i>f</i><sub>in</sub> (100 Hz .. 20 kHz)</option>
+                                <option value="T_acq">Acquisition Time <i>T</i><sub>acq</sub> (50..2000 ns)</option>
+                            </select>
+                        </div>
+                        <div class="input-group">
+                            <label>X-Axis Parameter (Heatmap)</label>
+                            <select id="sweep_axis_x">
+                                <option value="R_ext">Filter Resistance <i>R</i><sub>ext</sub> (10..2000 Ω)</option>
+                                <option value="sig_frequency" selected>Signal Frequency <i>f</i><sub>in</sub> (100 Hz .. 20 kHz)</option>
+                                <option value="T_acq">Acquisition Time <i>T</i><sub>acq</sub> (50..2000 ns)</option>
+                            </select>
+                        </div>
+                        <div class="input-group" style="justify-content: flex-end;">
+                            <button id="btn-run-sweep" class="btn-primary">
+                                <i class="fa-solid fa-play"></i> Run Sweep
+                            </button>
+                        </div>
+                    </div>
+
+                    <div class="sweep-range-grid">
+                        <div class="sweep-range-row">
+                            <div class="sweep-range-heading">
+                                <span>Y Range</span>
+                                <span id="sweep_y_unit" class="range-unit">Ω</span>
+                            </div>
+                            <div class="sweep-range-fields">
+                                <div class="input-group">
+                                    <label for="sweep_y_min">Min</label>
+                                    <input type="number" id="sweep_y_min" class="sweep-control" value="10" step="any">
+                                </div>
+                                <div class="input-group">
+                                    <label for="sweep_y_max">Max</label>
+                                    <input type="number" id="sweep_y_max" class="sweep-control" value="1500" step="any">
+                                </div>
+                                <div class="input-group">
+                                    <label for="sweep_y_points">Points</label>
+                                    <input type="number" id="sweep_y_points" class="sweep-control" value="10" min="2" max="40" step="1">
+                                </div>
+                                <div class="input-group">
+                                    <label for="sweep_y_scale">Scale</label>
+                                    <select id="sweep_y_scale" class="sweep-control">
+                                        <option value="linear" selected>Linear</option>
+                                        <option value="log">Log</option>
+                                    </select>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="sweep-range-row">
+                            <div class="sweep-range-heading">
+                                <span>X Range</span>
+                                <span id="sweep_x_unit" class="range-unit">Hz</span>
+                            </div>
+                            <div class="sweep-range-fields">
+                                <div class="input-group">
+                                    <label for="sweep_x_min">Min</label>
+                                    <input type="number" id="sweep_x_min" class="sweep-control" value="200" step="any">
+                                </div>
+                                <div class="input-group">
+                                    <label for="sweep_x_max">Max</label>
+                                    <input type="number" id="sweep_x_max" class="sweep-control" value="15000" step="any">
+                                </div>
+                                <div class="input-group">
+                                    <label for="sweep_x_points">Points</label>
+                                    <input type="number" id="sweep_x_points" class="sweep-control" value="10" min="2" max="40" step="1">
+                                </div>
+                                <div class="input-group">
+                                    <label for="sweep_x_scale">Scale</label>
+                                    <select id="sweep_x_scale" class="sweep-control">
+                                        <option value="linear" selected>Linear</option>
+                                        <option value="log">Log</option>
+                                    </select>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <aside class="ad-slot ad-slot-horizontal" data-ad-slot="design-space-728x90" aria-label="Advertisement slot">
+                    <span class="ad-label">Advertisement</span>
+                    <span class="ad-title">Reserved for partner content</span>
+                    <span class="ad-size">728 x 90</span>
+                </aside>
+
+                <div class="graphs-grid">
+                    <div class="graph-card full-width">
+                        <div class="graph-title">Safe Operating Regions (ENOB Loss Heatmap)</div>
+                        <div id="heatmap-plot" class="graph-container"></div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Tab 3: Capacitor Library -->
+            <div id="preset-library" class="tab-content">
+                <div class="library-container">
+                    <!-- Left: Table & Search -->
+                    <div class="graph-card table-card">
+                        <div class="graph-title library-title-bar">
+                            <span>MLCC Component Database</span>
+                            <div class="search-container">
+                                <i class="fa-solid fa-magnifying-glass search-icon"></i>
+                                <input type="text" id="library-search" placeholder="Search by PN, mfr, size, dielectric...">
+                            </div>
+                        </div>
+                        
+                        <div class="table-scroll-container">
+                            <table class="library-table">
+                                <colgroup>
+                                    <col class="library-col-compare">
+                                    <col class="library-col-part">
+                                    <col class="library-col-mfr">
+                                    <col class="library-col-cap">
+                                    <col class="library-col-voltage">
+                                    <col class="library-col-dielectric">
+                                    <col class="library-col-size">
+                                    <col class="library-col-action">
+                                </colgroup>
+                                <thead>
+                                    <tr>
+                                        <th style="text-align: center;"><i class="fa-solid fa-chart-line" title="Compare on chart"></i></th>
+                                        <th>Part Number</th>
+                                        <th>Mfr</th>
+                                        <th style="text-align: right;">Nominal Cap</th>
+                                        <th style="text-align: right;">Rated V</th>
+                                        <th style="text-align: center;">Dielectric</th>
+                                        <th style="text-align: center;">Size</th>
+                                        <th style="text-align: center;">Action</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="library-table-body">
+                                    <!-- Dynamic rows will be inserted here -->
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                    
+                    <!-- Right: Comparison Chart -->
+                    <div class="graph-card chart-card">
+                        <div class="graph-title">C(V) Bias Characteristics Comparison</div>
+                        <div id="library-compare-plot" class="graph-container library-plot"></div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Tab 4: Methodology -->
+            <div id="methodology" class="tab-content">
+                <header class="method-header">
+                    <div>
+                        <span class="method-eyebrow">Model reference</span>
+                        <h1>Methodology and Model Definition</h1>
+                        <p>Electrical object, equations, calculated metrics and explicit limits of the simulation.</p>
+                    </div>
+                    <button class="btn-secondary method-back" onclick="switchTab('single-scenario')" title="Return to Single Point">
+                        <i class="fa-solid fa-arrow-left"></i> Single Point
+                    </button>
+                </header>
+
+                <div class="method-layout">
+                    <nav class="method-toc" aria-label="Methodology contents">
+                        <a href="#method-model">Model overview</a>
+                        <a href="#method-circuit">Circuit and signals</a>
+                        <a href="#method-cv">Capacitance C(V)</a>
+                        <a href="#method-settling">Acquisition settling</a>
+                        <a href="#method-sinad">SINAD and ENOB</a>
+                        <a href="#method-thd">THD</a>
+                        <a href="#method-residual">Residual error</a>
+                        <a href="#method-ablation">Loss decomposition</a>
+                        <a href="#method-numerics">Numerical method</a>
+                        <a href="#method-limits">Assumptions and limits</a>
+                    </nav>
+
+                    <div class="method-content">
+                        <section id="method-model" class="method-section">
+                            <span class="method-section-index">01</span>
+                            <div>
+                                <h2>Model overview</h2>
+                                <p>The tool models an external RC network connected to a switched-capacitor ADC input. Its purpose is engineering screening: estimate how voltage-dependent capacitance and incomplete acquisition affect spectral quality and effective resolution.</p>
+                                <div class="method-note">
+                                    <strong>Scope:</strong> deterministic time-domain simulation of the input network. The result is not a transistor-level ADC model and not a complete physical model of a ferroelectric dielectric.
+                                </div>
+                            </div>
+                        </section>
+
+                        <section id="method-circuit" class="method-section">
+                            <span class="method-section-index">02</span>
+                            <div>
+                                <h2>Circuit and observed signals</h2>
+                                <div class="circuit-schematic" role="img" aria-label="Input source, external resistor, nonlinear capacitor, sampling switch, sampling capacitor and ADC quantizer">
+                                    <svg class="circuit-svg" viewBox="0 0 1200 340" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+                                        <defs>
+                                            <marker id="circuit-arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+                                                <path d="M 0 0 L 10 5 L 0 10 z" class="circuit-arrow-head"/>
+                                            </marker>
+                                        </defs>
+
+                                        <!-- Ideal signal source -->
+                                        <path class="circuit-wire" d="M85 115 H170"/>
+                                        <path class="circuit-wire" d="M85 115 V130"/>
+                                        <circle class="circuit-symbol" cx="85" cy="165" r="35"/>
+                                        <path class="circuit-signal" d="M62 165 C69 147 78 147 85 165 C92 183 101 183 108 165"/>
+                                        <path class="circuit-wire" d="M85 200 V270"/>
+                                        <path class="circuit-ground" d="M65 270 H105 M71 278 H99 M78 286 H92"/>
+                                        <text class="circuit-label circuit-label-strong" x="85" y="88" text-anchor="middle">V<tspan baseline-shift="sub" font-size="10">in</tspan>(t)</text>
+                                        <text class="circuit-caption" x="85" y="310" text-anchor="middle">ideal source</text>
+
+                                        <!-- External resistance -->
+                                        <path class="circuit-wire" d="M170 115 L184 115 L194 97 L214 133 L234 97 L254 133 L274 97 L294 133 L304 115 L330 115"/>
+                                        <text class="circuit-label" x="250" y="78" text-anchor="middle">R<tspan baseline-shift="sub" font-size="10">ext</tspan></text>
+
+                                        <!-- External node and nonlinear capacitor -->
+                                        <path class="circuit-wire" d="M330 115 H470"/>
+                                        <circle class="circuit-node" cx="360" cy="115" r="4"/>
+                                        <text class="circuit-label circuit-label-strong" x="360" y="78" text-anchor="middle">V<tspan baseline-shift="sub" font-size="10">ext</tspan></text>
+                                        <path class="circuit-wire" d="M360 115 V184"/>
+                                        <path class="circuit-symbol" d="M326 184 H394 M326 204 H394"/>
+                                        <path class="circuit-wire" d="M360 204 V270"/>
+                                        <path class="circuit-ground" d="M340 270 H380 M346 278 H374 M353 286 H367"/>
+                                        <text class="circuit-label" x="410" y="198">C<tspan baseline-shift="sub" font-size="10">ext</tspan>(V)</text>
+                                        <text class="circuit-caption" x="410" y="220">voltage-dependent</text>
+
+                                        <!-- Acquisition switch -->
+                                        <circle class="circuit-symbol-fill" cx="470" cy="115" r="4"/>
+                                        <circle class="circuit-symbol-fill" cx="555" cy="115" r="4"/>
+                                        <path class="circuit-symbol" d="M474 111 L538 79"/>
+                                        <path class="circuit-wire" d="M555 115 H600"/>
+                                        <text class="circuit-label" x="512" y="55" text-anchor="middle">S<tspan baseline-shift="sub" font-size="10">acq</tspan></text>
+                                        <text class="circuit-caption" x="512" y="150" text-anchor="middle">closed for T<tspan baseline-shift="sub" font-size="9">acq</tspan></text>
+
+                                        <!-- Sampling switch resistance -->
+                                        <path class="circuit-wire" d="M600 115 L614 115 L624 97 L644 133 L664 97 L684 133 L704 97 L724 133 L734 115 L770 115"/>
+                                        <text class="circuit-label" x="670" y="78" text-anchor="middle">R<tspan baseline-shift="sub" font-size="10">sw</tspan></text>
+
+                                        <!-- Sample-and-hold node -->
+                                        <path class="circuit-wire" d="M770 115 H860"/>
+                                        <circle class="circuit-node" cx="790" cy="115" r="4"/>
+                                        <text class="circuit-label circuit-label-strong" x="790" y="78" text-anchor="middle">V<tspan baseline-shift="sub" font-size="10">sh</tspan></text>
+                                        <path class="circuit-wire" d="M790 115 V184"/>
+                                        <path class="circuit-symbol" d="M756 184 H824 M756 204 H824"/>
+                                        <path class="circuit-wire" d="M790 204 V270"/>
+                                        <path class="circuit-ground" d="M770 270 H810 M776 278 H804 M783 286 H797"/>
+                                        <text class="circuit-label" x="835" y="198">C<tspan baseline-shift="sub" font-size="10">sh</tspan></text>
+                                        <text class="circuit-caption" x="835" y="220">sample hold</text>
+
+                                        <!-- ADC input and output -->
+                                        <rect class="circuit-symbol circuit-adc" x="860" y="64" width="220" height="102"/>
+                                        <path class="circuit-symbol" d="M860 94 L880 115 L860 136"/>
+                                        <text class="circuit-label circuit-label-strong" x="970" y="105" text-anchor="middle">N-bit ADC</text>
+                                        <text class="circuit-caption" x="970" y="130" text-anchor="middle">sampling and quantization</text>
+                                        <path class="circuit-wire" d="M1080 115 H1160" marker-end="url(#circuit-arrow)"/>
+                                        <text class="circuit-label" x="1120" y="92" text-anchor="middle">code[n]</text>
+                                    </svg>
+                                </div>
+                                <table class="definition-table">
+                                    <tbody>
+                                        <tr><th>V<sub>in</sub></th><td>Ideal source waveform with amplitude, frequency and DC offset.</td></tr>
+                                        <tr><th>V<sub>ext</sub></th><td>Voltage on the external nonlinear capacitor.</td></tr>
+                                        <tr><th>V<sub>sh</sub></th><td>Voltage acquired by the internal sample-and-hold capacitor.</td></tr>
+                                        <tr><th>T<sub>acq</sub></th><td>Time during which the sampling switch is closed.</td></tr>
+                                        <tr><th>f<sub>s</sub></th><td>Sampling rate; the sampling period is T<sub>s</sub> = 1/f<sub>s</sub>.</td></tr>
+                                    </tbody>
+                                </table>
+                            </div>
+                        </section>
+
+                        <section id="method-cv" class="method-section">
+                            <span class="method-section-index">03</span>
+                            <div>
+                                <h2>Voltage-dependent capacitance C(V)</h2>
+                                <p>The external capacitor is represented by a differential capacitance evaluated at the current capacitor voltage. Generic C0G is constant; X7R/X5R and catalog presets reduce capacitance as the absolute applied voltage increases.</p>
+                                <div class="formula-block">
+                                    <code>dV<sub>ext</sub>/dt = I<sub>ext</sub> / C<sub>ext</sub>(V<sub>ext</sub>)</code>
+                                </div>
+                                <p>This is a quasi-static engineering approximation. Frequency dispersion, dielectric absorption, thermal effects and polarization history are intentionally outside the current model.</p>
+                            </div>
+                        </section>
+
+                        <section id="method-settling" class="method-section">
+                            <span class="method-section-index">04</span>
+                            <div>
+                                <h2>Acquisition settling</h2>
+                                <p>When the switch closes, C<sub>sh</sub> charges through R<sub>sw</sub> while the external RC node is also moving. The settling metric is measured at the end of acquisition:</p>
+                                <div class="formula-block">
+                                    <code>e<sub>settling</sub>[n] = V<sub>ext</sub>[n] - V<sub>sh</sub>[n]</code>
+                                </div>
+                                <p>The table reports the peak absolute error both as voltage and as an equivalent number of LSB. A very large LSB number may still correspond to an ordinary analog voltage when a 24-bit scale is selected.</p>
+                            </div>
+                        </section>
+
+                        <section id="method-sinad" class="method-section">
+                            <span class="method-section-index">05</span>
+                            <div>
+                                <h2>SINAD, effective ENOB and ENOB loss</h2>
+                                <p>SINAD compares the fundamental power with all remaining noise and distortion power in the analyzed spectrum.</p>
+                                <div class="formula-grid">
+                                    <div class="formula-block"><code>SINAD = 10 log<sub>10</sub>(P<sub>fund</sub> / P<sub>noise+dist</sub>)</code></div>
+                                    <div id="method-enob" class="formula-block"><code>ENOB = (SINAD - 1.76) / 6.02</code></div>
+                                    <div id="method-enob-loss" class="formula-block"><code>ENOB loss = N<sub>bits</sub> - ENOB</code></div>
+                                </div>
+                                <p>ENOB is a compact system metric. It does not identify the physical source of the loss; use the ablation rows and direct spectral metrics for diagnosis.</p>
+                            </div>
+                        </section>
+
+                        <section id="method-thd" class="method-section">
+                            <span class="method-section-index">06</span>
+                            <div>
+                                <h2>Total harmonic distortion</h2>
+                                <div class="formula-block">
+                                    <code>THD = 10 log<sub>10</sub>((P<sub>H2</sub> + ... + P<sub>H10</sub>) / P<sub>fund</sub>)</code>
+                                </div>
+                                <p>THD isolates energy at harmonic frequencies. More negative values indicate lower harmonic distortion. It is the direct metric for studying the nonlinear C(V) mechanism.</p>
+                            </div>
+                        </section>
+
+                        <section id="method-residual" class="method-section">
+                            <span class="method-section-index">07</span>
+                            <div>
+                                <h2>Residual error</h2>
+                                <p>A least-squares sine, cosine and DC model is fitted to the reconstructed samples. The residual is the sample sequence left after removing that best-fit fundamental.</p>
+                                <div class="formula-block">
+                                    <code>r[n] = V<sub>ADC</sub>[n] - V<sub>fit</sub>[n]</code>
+                                </div>
+                                <p>Peak residual is useful for locating worst-case excursions; RMS residual is more representative of total error energy.</p>
+                            </div>
+                        </section>
+
+                        <section id="method-ablation" class="method-section">
+                            <span class="method-section-index">08</span>
+                            <div>
+                                <h2>Loss decomposition by ablation</h2>
+                                <table class="definition-table">
+                                    <tbody>
+                                        <tr><th>Baseline floor</th><td>Linear C0G and ideal observation of V<sub>ext</sub>. Includes quantization, FFT and finite-record limitations.</td></tr>
+                                        <tr><th>C(V) only</th><td>Nonlinear external capacitance with ideal observation of V<sub>ext</sub>.</td></tr>
+                                        <tr><th>Settling only</th><td>Linear external capacitor with the real switched acquisition path.</td></tr>
+                                        <tr><th>Combined extra</th><td>Full model loss above the baseline floor.</td></tr>
+                                        <tr><th>Interaction</th><td>Combined extra minus the separate C(V) and settling contributions. A non-zero value means the effects are not additive.</td></tr>
+                                    </tbody>
+                                </table>
+                            </div>
+                        </section>
+
+                        <section id="method-numerics" class="method-section">
+                            <span class="method-section-index">09</span>
+                            <div>
+                                <h2>Numerical method and FFT</h2>
+                                <ul class="method-list">
+                                    <li>Semi-implicit integration is used for interactive calculations; Radau is available for high-accuracy verification.</li>
+                                    <li>The single-point analysis uses 1024 samples.</li>
+                                    <li>A four-term Blackman-Harris window reduces spectral leakage.</li>
+                                    <li>The fundamental and harmonic powers are integrated across the main-lobe bins.</li>
+                                    <li>Initial samples are excluded from peak settling and residual diagnostics.</li>
+                                </ul>
+                            </div>
+                        </section>
+
+                        <section id="method-limits" class="method-section">
+                            <span class="method-section-index">10</span>
+                            <div>
+                                <h2>Assumptions and limits</h2>
+                                <ul class="method-list">
+                                    <li>This is an experimental validation build; numerical and modeling errors are possible.</li>
+                                    <li>The source is ideal and has no output noise or harmonic distortion.</li>
+                                    <li>R<sub>sw</sub> and C<sub>sh</sub> are fixed lumped parameters.</li>
+                                    <li>Comparator noise, reference noise, jitter, DNL and INL are not modeled.</li>
+                                    <li>The MLCC model is quasi-static and component presets are engineering fits, not guaranteed production limits.</li>
+                                    <li>Low-frequency FFT results require enough observed periods; short records can dominate the baseline floor.</li>
+                                </ul>
+                                <div class="method-note">
+                                    <strong>Interpretation rule:</strong> use the tool to compare design directions and identify dominant mechanisms. Validate final hardware with component-specific data, measurement or detailed circuit simulation.
+                                </div>
+                            </div>
+                        </section>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Tab 5: About Author -->
+            <div id="about-author" class="tab-content">
+                <header class="method-header">
+                    <div>
+                        <span class="method-eyebrow">Project details</span>
+                        <h1>About the Project & Author</h1>
+                        <p>Background information, social links, and related publications.</p>
+                    </div>
+                    <button class="btn-secondary method-back" onclick="switchTab('single-scenario')" title="Return to Single Point">
+                        <i class="fa-solid fa-arrow-left"></i> Single Point
+                    </button>
+                </header>
+
+                <div class="method-container">
+                    <section class="method-section">
+                        <span class="method-section-index">01</span>
+                        <div>
+                            <h2>Author Profile</h2>
+                            <p>Boris Kuznetsov is a Professor and Electronics Engineer specializing in precision measurement systems and embedded electronics. His work focuses on analog and mixed-signal circuit design, high-speed PCB design, digital signal processing, and instrumentation systems. He is also the creator of the YouTube channel @High_SNR_Channel, where he shares educational content on electronics, circuit design, and hardware development.</p>
+                        </div>
+                    </section>
+
+                    <section class="method-section">
+                        <span class="method-section-index">02</span>
+                        <div>
+                            <h2>Official Profiles & Socials</h2>
+                            <ul class="method-list">
+                                <li>Channel Portal: <a href="https://highsnr.org" target="_blank">highsnr.org</a></li>
+                                <li>YouTube Channel: <a href="https://www.youtube.com/@High_SNR_Channel" target="_blank">youtube.com/@High_SNR_Channel</a></li>
+                                <li>GitHub Profile: <a href="https://github.com/DrBorisKuznetsov" target="_blank">github.com/DrBorisKuznetsov</a></li>
+                                <li>LinkedIn Profile: <a href="https://www.linkedin.com/" target="_blank">linkedin.com</a></li>
+                            </ul>
+                        </div>
+                    </section>
+
+                    <section class="method-section">
+                        <span class="method-section-index">03</span>
+                        <div>
+                            <h2>Contacts</h2>
+                            <ul class="method-list">
+                                <li>Email: <a href="mailto:info@highsnr.org">info@highsnr.org</a></li>
+                            </ul>
+                        </div>
+                    </section>
+
+                    <section class="method-section">
+                        <span class="method-section-index">04</span>
+                        <div>
+                            <h2>Theory & Publications</h2>
+                            <ul class="method-list">
+                                <li>Theory Paper: <a href="https://doi.org/10.31224/7436" target="_blank">Frequency-Dependent Distortion in Class II Ceramic Capacitors: Physics and Simulation Traps</a> (DOI: 10.31224/7436)</li>
+                                <li>Theory Paper: <a href="https://doi.org/10.31224/7456" target="_blank">Voltage-Dependent Ceramic Capacitors as a Source of Dynamic Error in SAR ADC Front Ends</a> (DOI: 10.31224/7456)</li>
+                            </ul>
+                        </div>
+                    </section>
+                </div>
+            </div>
+
+        </main>
+    </div>
+
+    <!-- JavaScript UI Logic -->
+    <script>
+        const STORAGE_KEY = 'adc_input_simulator_state';
+
+        let CAPACITOR_PRESETS = {};
+
+        const SWEEP_RANGE_DEFAULTS = {
+            R_ext: { min: 10, max: 1500, points: 10, scale: 'linear', unit: 'Ω' },
+            sig_frequency: { min: 200, max: 15000, points: 10, scale: 'linear', unit: 'Hz' },
+            T_acq: { min: 50, max: 1500, points: 10, scale: 'linear', unit: 'ns' }
+        };
+
+        const STATE_FIELDS = [
+            'cap_preset', 'sig_form', 'sig_amp', 'sig_freq', 'sig_offset',
+            'r_ext', 'c_ext_nom', 'v_rated', 'cap_type', 'custom_drop',
+            'r_sw', 'c_sh', 't_acq', 'f_s', 'bits', 'v_ref', 'sim_method',
+            'sweep_axis_y', 'sweep_axis_x',
+            'sweep_y_min', 'sweep_y_max', 'sweep_y_points', 'sweep_y_scale',
+            'sweep_x_min', 'sweep_x_max', 'sweep_x_points', 'sweep_x_scale'
+        ];
+
+        async function loadCapacitorPresets() {
+            const response = await fetch('./src/capacitors.json');
+            if (!response.ok) {
+                throw new Error(`Unable to load capacitor catalog: ${response.status}`);
+            }
+            CAPACITOR_PRESETS = await response.json();
+        }
+
+        function capacitanceToNf(valueFarads) {
+            return Number(valueFarads) * 1e9;
+        }
+
+        function formatCapacitanceNf(valueFarads) {
+            return Number(capacitanceToNf(valueFarads).toPrecision(6));
+        }
+
+        function updatePresetFields() {
+            const presetVal = document.getElementById('cap_preset').value;
+            const cExtNom = document.getElementById('c_ext_nom');
+            const vRated = document.getElementById('v_rated');
+            const capType = document.getElementById('cap_type');
+            const customDropGroup = document.getElementById('custom_drop_group');
+            
+            if (presetVal === 'custom') {
+                cExtNom.removeAttribute('disabled');
+                vRated.removeAttribute('disabled');
+                capType.removeAttribute('disabled');
+                customDropGroup.style.display = capType.value === 'CUSTOM' ? 'flex' : 'none';
+            } else {
+                const preset = CAPACITOR_PRESETS[presetVal];
+                if (preset) {
+                    cExtNom.value = formatCapacitanceNf(preset.c_nom);
+                    vRated.value = preset.v_rated;
+                    capType.value = preset.cap_type;
+                    
+                    cExtNom.setAttribute('disabled', 'true');
+                    vRated.setAttribute('disabled', 'true');
+                    capType.setAttribute('disabled', 'true');
+                    customDropGroup.style.display = 'none';
+                }
+            }
+        }
+
+        // Load settings from localStorage
+        function loadState() {
+            const saved = localStorage.getItem(STORAGE_KEY);
+            if (!saved) return;
+            try {
+                const state = JSON.parse(saved);
+                
+                // Restore theme
+                if (state.theme) {
+                    const restoredTheme = state.theme === 'cream' ? 'light' : state.theme;
+                    // Update attribute on body
+                    document.body.setAttribute('data-theme', restoredTheme);
+                    // Update active state in theme buttons
+                    document.querySelectorAll('.theme-btn').forEach(btn => {
+                        if (btn.getAttribute('data-theme-val') === restoredTheme) {
+                            btn.classList.add('active');
+                        } else {
+                            btn.classList.remove('active');
+                        }
+                    });
+                }
+                
+                // Restore all fields if they exist in state
+                STATE_FIELDS.forEach(field => {
+                    if (state[field] !== undefined) {
+                        const elem = document.getElementById(field);
+                        if (elem) {
+                            elem.value = state[field];
+                            // Trigger input labels update for range sliders
+                            if (field === 'sig_amp') {
+                                document.getElementById('sig_amp_val').innerText = state[field];
+                            } else if (field === 'custom_drop') {
+                                document.getElementById('custom_drop_val').innerText = state[field];
+                            }
+                        }
+                    }
+                });
+                
+                // Set disabled states and custom drop visibility based on loaded preset
+                updatePresetFields();
+                
+            } catch (e) {
+                console.error("Error loading state", e);
+            }
+        }
+
+        // Save current settings to localStorage
+        function saveState() {
+            const state = {
+                theme: document.body.getAttribute('data-theme') || 'light'
+            };
+            STATE_FIELDS.forEach(field => {
+                const elem = document.getElementById(field);
+                if (elem) {
+                    state[field] = elem.value;
+                }
+            });
+            localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+        }
+
+        function updateSweepRangeUnit(prefix) {
+            const axis = document.getElementById(`sweep_axis_${prefix}`).value;
+            const defaults = SWEEP_RANGE_DEFAULTS[axis];
+            const unitElem = document.getElementById(`sweep_${prefix}_unit`);
+            if (defaults && unitElem) {
+                unitElem.innerText = defaults.unit;
+            }
+        }
+
+        function applySweepRangeDefaults(prefix) {
+            const axis = document.getElementById(`sweep_axis_${prefix}`).value;
+            const defaults = SWEEP_RANGE_DEFAULTS[axis];
+            if (!defaults) return;
+            document.getElementById(`sweep_${prefix}_min`).value = defaults.min;
+            document.getElementById(`sweep_${prefix}_max`).value = defaults.max;
+            document.getElementById(`sweep_${prefix}_points`).value = defaults.points;
+            document.getElementById(`sweep_${prefix}_scale`).value = defaults.scale;
+            updateSweepRangeUnit(prefix);
+        }
+
+        function setupSweepRangeControls() {
+            ['x', 'y'].forEach(prefix => {
+                const axisElem = document.getElementById(`sweep_axis_${prefix}`);
+                if (axisElem) {
+                    axisElem.addEventListener('change', () => {
+                        applySweepRangeDefaults(prefix);
+                        saveState();
+                    });
+                    updateSweepRangeUnit(prefix);
+                }
+            });
+
+            document.querySelectorAll('.sweep-control').forEach(elem => {
+                elem.addEventListener('input', saveState);
+                elem.addEventListener('change', saveState);
+            });
+        }
+
+        // Theme switching
+        function setTheme(themeName) {
+            document.body.setAttribute('data-theme', themeName);
+            
+            // Update active state in theme buttons
+            document.querySelectorAll('.theme-btn').forEach(btn => {
+                if (btn.getAttribute('data-theme-val') === themeName) {
+                    btn.classList.add('active');
+                } else {
+                    btn.classList.remove('active');
+                }
+            });
+            
+            saveState();
+            
+            // Re-render python charts
+            if (window.updateChartsThemePy) {
+                window.updateChartsThemePy();
+            }
+            
+            // Re-render library comparison chart
+            updateComparePlot();
+        }
+
+        function cleanReportText(value) {
+            return String(value || '').replace(/\s+/g, ' ').trim();
+        }
+
+        function getControlReportValue(control) {
+            if (!control) return '';
+            if (control.tagName === 'SELECT') {
+                return control.options[control.selectedIndex]?.text || control.value;
+            }
+            return control.value || '';
+        }
+
+        function collectReportParameters() {
+            const rows = [];
+            document.querySelectorAll('.sidebar details.input-section').forEach(section => {
+                const groupName = cleanReportText(section.querySelector('summary span')?.textContent || 'Parameters');
+                section.querySelectorAll('.input-group').forEach(group => {
+                    if (group.id === 'custom_drop_group' && getComputedStyle(group).display === 'none') return;
+
+                    const label = cleanReportText(group.querySelector('label')?.textContent);
+                    const control = group.querySelector('input, select');
+                    if (!label || !control) return;
+                    rows.push({
+                        group: groupName,
+                        name: label,
+                        value: getControlReportValue(control)
+                    });
+                });
+            });
+            return rows;
+        }
+
+        function collectReportDiagnostics() {
+            const rows = [];
+            let groupName = '';
+            document.querySelectorAll('.diagnostic-table tr').forEach(row => {
+                const sectionCell = row.querySelector('.diag-section-row th');
+                if (sectionCell) {
+                    groupName = cleanReportText(sectionCell.textContent);
+                    return;
+                }
+
+                const cells = Array.from(row.children).map(cell => cleanReportText(cell.textContent));
+                if (cells.length !== 4 || cells[0] === 'Metric') return;
+                rows.push({
+                    group: groupName,
+                    metric: cells[0],
+                    value: cells[1],
+                    equivalent: cells[2],
+                    comment: cells[3]
+                });
+            });
+            return rows;
+        }
+
+        async function captureReportChartImage(elementId) {
+            const plot = document.getElementById(elementId);
+            if (!plot || typeof Plotly === 'undefined') return null;
+            return Plotly.toImage(plot, {
+                format: 'png',
+                width: 1100,
+                height: 620,
+                scale: 1.25
+            });
+        }
+
+        function getReportPdfFileName(generatedAt) {
+            const safeTimestamp = generatedAt.toISOString().replace(/[:.]/g, '-');
+            return `adc-input-report-${safeTimestamp}.pdf`;
+        }
+
+        function ensurePdfSpace(doc, y, requiredHeight, marginTop = 15, bottom = 282) {
+            if (y + requiredHeight <= bottom) return y;
+            doc.addPage();
+            return marginTop;
+        }
+
+        function addPdfWrappedText(doc, text, x, y, maxWidth, lineHeight = 4.2) {
+            const lines = doc.splitTextToSize(cleanReportText(text), maxWidth);
+            lines.forEach(line => {
+                y = ensurePdfSpace(doc, y, lineHeight);
+                doc.text(line, x, y);
+                y += lineHeight;
+            });
+            return y;
+        }
+
+        function addPdfTable(doc, title, headers, rows, columns, columnWidths, y) {
+            const margin = 14;
+            const bottom = 282;
+            const headerHeight = 7;
+            const lineHeight = 3.7;
+
+            function drawHeader() {
+                doc.setFillColor(235, 238, 241);
+                doc.setDrawColor(205, 211, 218);
+                doc.setTextColor(55, 65, 75);
+                doc.setFont('helvetica', 'bold');
+                doc.setFontSize(7.5);
+                let x = margin;
+                headers.forEach((header, index) => {
+                    doc.rect(x, y, columnWidths[index], headerHeight, 'FD');
+                    doc.text(header, x + 1.5, y + 4.6);
+                    x += columnWidths[index];
+                });
+                y += headerHeight;
+            }
+
+            y = ensurePdfSpace(doc, y, 16);
+            doc.setTextColor(30, 38, 46);
+            doc.setFont('helvetica', 'bold');
+            doc.setFontSize(11);
+            doc.text(title, margin, y);
+            y += 6;
+            drawHeader();
+
+            rows.forEach(row => {
+                doc.setFont('helvetica', 'normal');
+                doc.setFontSize(7.4);
+                const cells = columns.map((column, index) => {
+                    const value = cleanReportText(row[column]);
+                    return doc.splitTextToSize(value || '-', columnWidths[index] - 3);
+                });
+                const rowHeight = Math.max(7, Math.max(...cells.map(lines => lines.length)) * lineHeight + 3);
+                if (y + rowHeight > bottom) {
+                    doc.addPage();
+                    y = 15;
+                    drawHeader();
+                }
+
+                let x = margin;
+                doc.setDrawColor(215, 220, 225);
+                doc.setTextColor(55, 65, 75);
+                cells.forEach((lines, index) => {
+                    doc.rect(x, y, columnWidths[index], rowHeight);
+                    doc.text(lines, x + 1.5, y + 4.7);
+                    x += columnWidths[index];
+                });
+                y += rowHeight;
+            });
+
+            return y + 7;
+        }
+
+        async function buildReportPdfBlob(generatedAt) {
+            const PdfCtor = window.jspdf?.jsPDF;
+            if (!PdfCtor) {
+                throw new Error('PDF engine is not available');
+            }
+
+            const doc = new PdfCtor({
+                orientation: 'portrait',
+                unit: 'mm',
+                format: 'a4',
+                compress: true
+            });
+            const margin = 14;
+            const contentWidth = 182;
+            let y = 16;
+
+            const parameters = collectReportParameters();
+            const diagnostics = collectReportDiagnostics();
+            const warningPanel = document.getElementById('clipping-warning');
+            const warningText = warningPanel?.classList.contains('visible')
+                ? cleanReportText(warningPanel.textContent)
+                : '';
+            const limiter = cleanReportText(document.getElementById('enob-limiter')?.textContent);
+            const detail = cleanReportText(document.getElementById('enob-detail')?.textContent);
+            const validationText = cleanReportText(document.querySelector('.validation-banner')?.textContent);
+
+            doc.setProperties({
+                title: 'ADC Input Stage Simulation Report',
+                subject: 'ADC input stage non-linearity simulation',
+                author: 'ADC Input Model'
+            });
+
+            doc.setTextColor(20, 28, 36);
+            doc.setFont('helvetica', 'bold');
+            doc.setFontSize(17);
+            doc.text('ADC Input Stage Simulation Report', margin, y);
+            y += 7;
+
+            doc.setFont('helvetica', 'normal');
+            doc.setFontSize(8.5);
+            doc.setTextColor(86, 96, 106);
+            y = addPdfWrappedText(doc, `Generated: ${generatedAt.toLocaleString()}`, margin, y, contentWidth);
+            y = addPdfWrappedText(doc, 'Channel: https://www.youtube.com/@High_SNR_Channel', margin, y, contentWidth);
+            y += 3;
+
+            doc.setFont('helvetica', 'bold');
+            doc.setFontSize(10);
+            doc.setTextColor(30, 38, 46);
+            doc.text('Validation notice', margin, y);
+            y += 5;
+            doc.setFont('helvetica', 'normal');
+            doc.setFontSize(8);
+            doc.setTextColor(70, 80, 90);
+            y = addPdfWrappedText(doc, validationText, margin, y, contentWidth, 3.9) + 2;
+
+            if (warningText) {
+                y = ensurePdfSpace(doc, y, 14);
+                doc.setFont('helvetica', 'bold');
+                doc.setTextColor(128, 78, 34);
+                doc.text('Warning', margin, y);
+                y += 5;
+                doc.setFont('helvetica', 'normal');
+                y = addPdfWrappedText(doc, warningText, margin, y, contentWidth, 3.9) + 2;
+            }
+
+            y = ensurePdfSpace(doc, y, 20);
+            doc.setFont('helvetica', 'bold');
+            doc.setFontSize(11);
+            doc.setTextColor(30, 38, 46);
+            doc.text('Summary', margin, y);
+            y += 6;
+            doc.setFont('helvetica', 'bold');
+            doc.setFontSize(8.5);
+            y = addPdfWrappedText(doc, limiter || 'Dominant limiter', margin, y, contentWidth, 4.1);
+            doc.setFont('helvetica', 'normal');
+            doc.setTextColor(70, 80, 90);
+            y = addPdfWrappedText(doc, detail || 'No diagnostic summary was available.', margin, y, contentWidth, 3.9) + 3;
+
+            y = addPdfTable(
+                doc,
+                'Input Parameters',
+                ['Group', 'Parameter', 'Value'],
+                parameters,
+                ['group', 'name', 'value'],
+                [48, 88, 46],
+                y
+            );
+
+            y = addPdfTable(
+                doc,
+                'Numeric Results',
+                ['Group', 'Metric', 'Value', 'Equivalent', 'Comment'],
+                diagnostics,
+                ['group', 'metric', 'value', 'equivalent', 'comment'],
+                [35, 38, 32, 34, 43],
+                y
+            );
+
+            const charts = [
+                ['time-plot', 'Time-domain response'],
+                ['error-plot', 'Residual and settling error'],
+                ['fft-plot', 'Spectrum'],
+                ['cv-plot', 'Capacitance profile']
+            ];
+            doc.setTextColor(30, 38, 46);
+            doc.setFont('helvetica', 'bold');
+            doc.setFontSize(11);
+            y = ensurePdfSpace(doc, y, 14);
+            doc.text('Charts', margin, y);
+            y += 7;
+
+            for (const [elementId, title] of charts) {
+                y = ensurePdfSpace(doc, y, 112);
+                doc.setFont('helvetica', 'bold');
+                doc.setFontSize(8.5);
+                doc.setTextColor(35, 45, 55);
+                doc.text(title, margin, y);
+                y += 4;
+                try {
+                    const imageUrl = await captureReportChartImage(elementId);
+                    if (imageUrl) {
+                        doc.addImage(imageUrl, 'PNG', margin, y, contentWidth, 102);
+                        y += 108;
+                    } else {
+                        doc.setFont('helvetica', 'normal');
+                        y = addPdfWrappedText(doc, 'Chart was not available when the report was generated.', margin, y, contentWidth, 3.8) + 3;
+                    }
+                } catch (error) {
+                    console.warn(`Unable to capture PDF chart ${elementId}`, error);
+                    doc.setFont('helvetica', 'normal');
+                    y = addPdfWrappedText(doc, 'Chart snapshot could not be captured.', margin, y, contentWidth, 3.8) + 3;
+                }
+            }
+
+            doc.setFont('helvetica', 'normal');
+            doc.setFontSize(7.2);
+            doc.setTextColor(110, 118, 126);
+            const pageCount = doc.getNumberOfPages();
+            for (let page = 1; page <= pageCount; page += 1) {
+                doc.setPage(page);
+                doc.text(`ADC Input Model report - page ${page} / ${pageCount}`, margin, 290);
+            }
+
+            return doc.output('blob');
+        }
+
+        async function writePdfBlobToFile(blob, fileName) {
+            if (window.showSaveFilePicker) {
+                try {
+                    const handle = await window.showSaveFilePicker({
+                        suggestedName: fileName,
+                        types: [{
+                            description: 'PDF document',
+                            accept: { 'application/pdf': ['.pdf'] }
+                        }]
+                    });
+                    const writable = await handle.createWritable();
+                    await writable.write(blob);
+                    await writable.close();
+                    return 'save-as';
+                } catch (error) {
+                    if (error?.name === 'AbortError') return 'cancelled';
+                    console.warn('Save As dialog failed, falling back to local server save', error);
+                }
+            }
+
+            try {
+                const response = await fetch('/api/save-report', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/pdf',
+                        'X-Report-File': fileName
+                    },
+                    body: blob
+                });
+                if (response.ok) {
+                    return 'server-saved';
+                }
+            } catch (error) {
+                console.warn('Local report save endpoint is not available', error);
+            }
+
+            const url = URL.createObjectURL(blob);
+            const link = document.createElement('a');
+            link.href = url;
+            link.download = fileName;
+            link.rel = 'noopener';
+            document.body.appendChild(link);
+            link.click();
+            link.remove();
+            window.setTimeout(() => URL.revokeObjectURL(url), 30000);
+            return 'download-requested';
+        }
+
+        async function saveReportPdf() {
+            const reportBtn = document.getElementById('report-btn');
+            const generatedAt = new Date();
+            releaseLoadingOverlay();
+
+            if (reportBtn) {
+                reportBtn.disabled = true;
+                reportBtn.classList.add('is-busy');
+            }
+            setCalcStatus('updating', 'Saving PDF...');
+
+            try {
+                window.dispatchEvent(new Event('resize'));
+                await new Promise(resolve => window.setTimeout(resolve, 120));
+                const blob = await buildReportPdfBlob(generatedAt);
+                const fileName = getReportPdfFileName(generatedAt);
+                const result = await writePdfBlobToFile(blob, fileName);
+
+                if (result === 'save-as') {
+                    setCalcStatus('ready', 'PDF saved');
+                } else if (result === 'server-saved') {
+                    setCalcStatus('ready', 'PDF saved');
+                } else if (result === 'cancelled') {
+                    setCalcStatus('ready', 'PDF save cancelled');
+                } else {
+                    setCalcStatus('ready', 'PDF download requested');
+                }
+            } catch (error) {
+                console.error('PDF export failed', error);
+                setCalcStatus('error', 'PDF export failed');
+            } finally {
+                if (reportBtn) {
+                    reportBtn.disabled = false;
+                    reportBtn.classList.remove('is-busy');
+                }
+            }
+        }
+
+        function releaseLoadingOverlay() {
+            const overlay = document.getElementById('loading-overlay');
+            if (!overlay) return;
+            overlay.classList.add('hidden');
+            overlay.style.opacity = '0';
+            overlay.style.visibility = 'hidden';
+            overlay.style.pointerEvents = 'none';
+        }
+
+        // Tab switching
+        function switchTab(tabId) {
+            document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+            document.querySelectorAll('.tab-btn').forEach(b => {
+                b.classList.remove('active');
+                b.removeAttribute('aria-current');
+            });
+            document.body.classList.toggle('methodology-open', tabId === 'methodology');
+            document.body.classList.toggle('library-open', tabId === 'preset-library');
+            document.body.classList.toggle('about-open', tabId === 'about-author');
+            
+            document.getElementById(tabId).classList.add('active');
+            
+            // Highlight the clicked tab button
+            document.querySelectorAll('.tab-btn').forEach(btn => {
+                const onclick = btn.getAttribute('onclick') || '';
+                if (onclick.includes(tabId)) {
+                    btn.classList.add('active');
+                    btn.setAttribute('aria-current', 'page');
+                }
+            });
+            
+            if (tabId === 'preset-library') {
+                scheduleLibraryPlotRender();
+            } else {
+                // Other Plotly charts are already initialized and only need a resize notification.
+                window.setTimeout(() => window.dispatchEvent(new Event('resize')), 50);
+            }
+        }
+
+        function openMethodology(sectionId) {
+            switchTab('methodology');
+            window.setTimeout(() => {
+                const section = document.getElementById(sectionId);
+                if (section) {
+                    section.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                    section.classList.add('method-section-focus');
+                    window.setTimeout(() => section.classList.remove('method-section-focus'), 1400);
+                }
+            }, 80);
+        }
+
+        // JS Bridge for Plotly
+        function renderPlotlyChart(elementId, data, layout) {
+            Plotly.react(elementId, data, layout, {
+                responsive: true, 
+                displayModeBar: false
+            });
+        }
+
+        function setCalcStatus(state, label) {
+            const status = document.getElementById('calc-status');
+            const text = document.getElementById('calc-status-text');
+            if (!status || !text) return;
+            status.className = `calc-status ${state}`;
+            text.innerText = label;
+        }
+
+        // --- Library Logic ---
+        let libraryPlotRenderFrame = 0;
+        let libraryPlotResizeFrame = 0;
+        let libraryPlotResizeObserver = null;
+
+        function isLibraryPlotVisible() {
+            const libraryTab = document.getElementById('preset-library');
+            const plot = document.getElementById('library-compare-plot');
+            return Boolean(
+                libraryTab?.classList.contains('active') &&
+                plot &&
+                plot.clientWidth > 0 &&
+                plot.clientHeight > 0
+            );
+        }
+
+        function resizeLibraryPlot() {
+            const plot = document.getElementById('library-compare-plot');
+            if (!isLibraryPlotVisible() || !plot?.classList.contains('js-plotly-plot')) return;
+
+            window.cancelAnimationFrame(libraryPlotResizeFrame);
+            libraryPlotResizeFrame = window.requestAnimationFrame(() => {
+                Plotly.Plots.resize(plot);
+            });
+        }
+
+        function scheduleLibraryPlotRender() {
+            window.cancelAnimationFrame(libraryPlotRenderFrame);
+            libraryPlotRenderFrame = window.requestAnimationFrame(() => {
+                libraryPlotRenderFrame = window.requestAnimationFrame(() => {
+                    if (isLibraryPlotVisible()) {
+                        updateComparePlot();
+                    }
+                });
+            });
+        }
+
+        function observeLibraryPlotSize() {
+            if (libraryPlotResizeObserver || !window.ResizeObserver) return;
+            const chartCard = document.querySelector('#preset-library .chart-card');
+            if (!chartCard) return;
+
+            libraryPlotResizeObserver = new ResizeObserver(() => {
+                resizeLibraryPlot();
+            });
+            libraryPlotResizeObserver.observe(chartCard);
+        }
+
+        function getPresetCapacitancePoints(presetKey) {
+            const preset = CAPACITOR_PRESETS[presetKey];
+            if (!preset) return null;
+            
+            const vAxis = [];
+            const cAxis = [];
+            const vMax = preset.v_rated * 1.5;
+            const steps = 150;
+            
+            for (let i = 0; i <= steps; i++) {
+                const v = -vMax + (2 * vMax * i) / steps;
+                vAxis.push(v);
+                
+                let c = capacitanceToNf(preset.c_nom); // displayed in nF
+                if (preset.cap_type === 'PRESET_FIT') {
+                    const v50 = preset.v50 || 5.0;
+                    const n = preset.n || 1.5;
+                    c = capacitanceToNf(preset.c_nom) / (1.0 + Math.pow(Math.abs(v) / v50, n));
+                } else if (preset.cap_type === 'C0G') {
+                    c = capacitanceToNf(preset.c_nom);
+                } else if (preset.cap_type === 'X7R') {
+                    // Normalize to preset rated voltage
+                    const norm_v = v / preset.v_rated;
+                    // Standard X7R LUT-like drop: 50% at v_rated
+                    c = capacitanceToNf(preset.c_nom) / (1.0 + Math.pow(Math.abs(v) / preset.v_rated, 1.4));
+                } else if (preset.cap_type === 'X5R') {
+                    // Standard X5R LUT-like drop: 20% at v_rated
+                    c = capacitanceToNf(preset.c_nom) / (1.0 + Math.pow(Math.abs(v) / (preset.v_rated * 0.5), 1.5));
+                }
+                cAxis.push(c);
+            }
+            return { vAxis, cAxis };
+        }
+
+        function getLibraryPlotLayout(theme) {
+            let paper_bg, plot_bg, font_color, grid_color, zero_line;
+            if (theme === "light") {
+                paper_bg = "rgba(255, 255, 255, 0.9)";
+                plot_bg = "rgba(243, 244, 246, 0.6)";
+                font_color = "#1F2937";
+                grid_color = "rgba(0, 0, 0, 0.06)";
+                zero_line = "rgba(0, 0, 0, 0.1)";
+            } else if (theme === "cream") {
+                paper_bg = "rgba(253, 251, 247, 0.9)";
+                plot_bg = "rgba(245, 239, 235, 0.6)";
+                font_color = "#2C241D";
+                grid_color = "rgba(67, 56, 44, 0.06)";
+                zero_line = "rgba(67, 56, 44, 0.12)";
+            } else { // dark
+                paper_bg = "rgba(13, 20, 35, 0.5)";
+                plot_bg = "rgba(8, 12, 20, 0.4)";
+                font_color = "#9CA3AF";
+                grid_color = "rgba(255, 255, 255, 0.05)";
+                zero_line = "rgba(255, 255, 255, 0.08)";
+            }
+
+            return {
+                autosize: true,
+                paper_bgcolor: paper_bg,
+                plot_bgcolor: plot_bg,
+                font: { family: "Outfit, sans-serif", color: font_color, size: 11 },
+                margin: { l: 60, r: 30, t: 40, b: 40 },
+                xaxis: {
+                    title: "Bias Voltage (V)",
+                    gridcolor: grid_color,
+                    zerolinecolor: zero_line,
+                    linecolor: zero_line
+                },
+                yaxis: {
+                    title: "Capacitance (nF)",
+                    gridcolor: grid_color,
+                    zerolinecolor: zero_line,
+                    linecolor: zero_line
+                },
+                legend: { orientation: "h", y: -0.15, x: 0.5, xanchor: "center" }
+            };
+        }
+
+        function getLibraryTracePalette(theme) {
+            return theme === 'dark'
+                ? ['#82A2B7', '#8FA99E', '#A49AB4', '#B4A27E', '#B58B83', '#8995A0']
+                : ['#557A92', '#63877E', '#7B718D', '#9A835D', '#986B64', '#6F7D87'];
+        }
+
+        function initLibraryTable() {
+            const tbody = document.getElementById('library-table-body');
+            if (!tbody) return;
+            tbody.innerHTML = '';
+            
+            Object.keys(CAPACITOR_PRESETS).forEach(key => {
+                const preset = CAPACITOR_PRESETS[key];
+                const capNf = capacitanceToNf(preset.c_nom);
+                let capStr = `${Number(capNf.toPrecision(4))} nF`;
+                if (capNf >= 1000) {
+                    capStr = `${Number((capNf / 1000).toPrecision(4))} µF`;
+                }
+                
+                const tr = document.createElement('tr');
+                tr.setAttribute('data-id', key);
+                tr.setAttribute('data-search', `${preset.name} ${preset.mfr} ${preset.size} ${preset.dielectric}`.toLowerCase());
+                
+                tr.innerHTML = `
+                    <td style="text-align: center; vertical-align: middle; padding: 0.75rem 0.5rem;">
+                        <input type="checkbox" class="compare-checkbox" data-id="${key}">
+                    </td>
+                    <td style="font-weight: 500; padding: 0.75rem 0.5rem;">${preset.name.split(' (')[0]}</td>
+                    <td style="padding: 0.75rem 0.5rem;">${preset.mfr}</td>
+                    <td style="text-align: right; font-family: 'JetBrains Mono', monospace; padding: 0.75rem 0.5rem;">${capStr}</td>
+                    <td style="text-align: right; font-family: 'JetBrains Mono', monospace; padding: 0.75rem 0.5rem;">${preset.v_rated} V</td>
+                    <td style="text-align: center; padding: 0.75rem 0.5rem;"><span class="badge ${preset.dielectric.toLowerCase()}">${preset.dielectric}</span></td>
+                    <td style="text-align: center; font-family: 'JetBrains Mono', monospace; padding: 0.75rem 0.5rem;">${preset.size}</td>
+                    <td style="text-align: center; padding: 0.75rem 0.5rem;">
+                        <button class="btn-table-apply" onclick="applyLibraryCapacitor('${key}')">Apply</button>
+                    </td>
+                `;
+                tbody.appendChild(tr);
+            });
+            
+            // Checked checkboxes compare listener
+            document.querySelectorAll('.compare-checkbox').forEach(cb => {
+                cb.addEventListener('change', updateComparePlot);
+            });
+        }
+
+        function updateComparePlot() {
+            if (!isLibraryPlotVisible()) return;
+
+            const checkedBoxes = document.querySelectorAll('.compare-checkbox:checked');
+            const data = [];
+            const theme = document.body.getAttribute('data-theme') || 'dark';
+            const tracePalette = getLibraryTracePalette(theme);
+            
+            checkedBoxes.forEach((cb, index) => {
+                const key = cb.getAttribute('data-id');
+                const preset = CAPACITOR_PRESETS[key];
+                if (preset) {
+                    const pts = getPresetCapacitancePoints(key);
+                    if (pts) {
+                        data.push({
+                            x: pts.vAxis,
+                            y: pts.cAxis,
+                            name: preset.name.split(' (')[0] + ' (' + preset.dielectric + ')',
+                            type: 'scatter',
+                            mode: 'lines',
+                            line: {
+                                width: 2.2,
+                                color: tracePalette[index % tracePalette.length]
+                            }
+                        });
+                    }
+                }
+            });
+            
+            const layout = getLibraryPlotLayout(theme);
+            
+            if (data.length === 0) {
+                layout.title = "Select checkboxes on the left to compare curves";
+            } else {
+                layout.title = "Capacitance C(V) Bias Comparison";
+            }
+            
+            const plot = document.getElementById('library-compare-plot');
+            Plotly.react(plot, data, layout, {
+                responsive: true,
+                displayModeBar: false
+            }).then(() => resizeLibraryPlot());
+        }
+
+        function applyLibraryCapacitor(key) {
+            const presetSelect = document.getElementById('cap_preset');
+            if (presetSelect) {
+                presetSelect.value = key;
+                updatePresetFields();
+                saveState();
+                
+                // Return to simulation page
+                switchTab('single-scenario');
+                
+                // Run python simulation
+                if (window.runSingleSimulationPy) {
+                    window.runSingleSimulationPy();
+                }
+            }
+        }
+        
+        // Preset select listener
+        document.getElementById('cap_preset').addEventListener('change', function() {
+            updatePresetFields();
+            saveState();
+        });
+
+        // Custom drop visibility control
+        document.getElementById('cap_type').addEventListener('change', function() {
+            var display = this.value === 'CUSTOM' ? 'flex' : 'none';
+            document.getElementById('custom_drop_group').style.display = display;
+        });
+
+        // Search filter listener
+        const librarySearch = document.getElementById('library-search');
+        if (librarySearch) {
+            librarySearch.addEventListener('input', function() {
+                const query = this.value.toLowerCase().trim();
+                const rows = document.querySelectorAll('#library-table-body tr');
+                rows.forEach(row => {
+                    const searchText = row.getAttribute('data-search') || '';
+                    row.style.display = searchText.includes(query) ? '' : 'none';
+                });
+            });
+        }
+
+        async function initializeCapacitorLibrary() {
+            try {
+                await loadCapacitorPresets();
+                loadState();
+                setupSweepRangeControls();
+                initLibraryTable();
+                observeLibraryPlotSize();
+
+                // Pre-check some interesting defaults for visual comparison on first load
+                const default1 = document.querySelector('.compare-checkbox[data-id="murata_grm155_10u_10v"]');
+                const default2 = document.querySelector('.compare-checkbox[data-id="murata_grm31c_10u_100v"]');
+                if (default1) default1.checked = true;
+                if (default2) default2.checked = true;
+
+                scheduleLibraryPlotRender();
+            } catch (error) {
+                console.error(error);
+                const tbody = document.getElementById('library-table-body');
+                if (tbody) {
+                    tbody.innerHTML = '<tr><td colspan="8">Capacitor catalog failed to load.</td></tr>';
+                }
+            }
+        }
+
+        initializeCapacitorLibrary();
+    </script>
+
+    <!-- Инициализация Wasm-скрипта с конфигурацией -->
+    <script type="py" config='{
+        "packages": ["numpy", "scipy"],
+        "files": {
+            "src/solver.py": "./src/solver.py",
+            "src/analyzer.py?v=20260623-edge-validation": "./src/analyzer.py",
+            "src/capacitors.json": "./src/capacitors.json"
+        }
+    }'>
+        import js
+        import sys
+        import traceback
+        import asyncio
+        import time
+
+        loading_step = js.document.getElementById("loading-step")
+
+        def show_error(err_title, err_obj, tb_str):
+            js.console.error(f"{err_title}: {err_obj}\n{tb_str}")
+            loading_step.innerHTML = f"""
+                <div style='color: #EF4444; background: rgba(239,68,68,0.1); padding: 15px; border: 1px solid #EF4444; border-radius: 6px; font-family: monospace; text-align: left; white-space: pre-wrap; font-size: 13px; max-width: 90vw; margin: 15px auto; overflow-x: auto;'>
+                    <b>{err_title}:</b> {err_obj}<br/><br/>
+                    {tb_str}
+                </div>
+            """
+            spinner = js.document.querySelector("#loading-overlay .spinner")
+            if spinner:
+                spinner.style.display = "none"
+
+        try:
+            import numpy as np
+            import json
+            from pyodide.ffi import create_proxy
+            
+            # Update loading status
+            loading_step.innerText = "Loading mathematical solver modules..."
+            
+            from src.solver import simulate_adc_input, SignalGenerator, CapacitorModel, quantize_samples, reconstruct_voltage, CAPACITOR_PRESETS
+            from src.analyzer import calculate_fft_metrics, run_parametric_sweep, assess_spectral_record
+            
+            loading_step.innerText = "Rendering interface..."
+
+            # Dynamic layout generator matching active skin
+            def get_plotly_layout(theme):
+                if theme == "light":
+                    paper_bg = "rgba(255, 255, 255, 0.9)"
+                    plot_bg = "rgba(243, 244, 246, 0.6)"
+                    font_color = "#1F2937"
+                    grid_color = "rgba(0, 0, 0, 0.06)"
+                    zero_line = "rgba(0, 0, 0, 0.1)"
+                elif theme == "cream":
+                    paper_bg = "rgba(253, 251, 247, 0.9)"
+                    plot_bg = "rgba(245, 239, 235, 0.6)"
+                    font_color = "#2C241D"
+                    grid_color = "rgba(67, 56, 44, 0.06)"
+                    zero_line = "rgba(67, 56, 44, 0.12)"
+                else: # dark
+                    paper_bg = "rgba(13, 20, 35, 0.5)"
+                    plot_bg = "rgba(8, 12, 20, 0.4)"
+                    font_color = "#9CA3AF"
+                    grid_color = "rgba(255, 255, 255, 0.05)"
+                    zero_line = "rgba(255, 255, 255, 0.08)"
+
+                return {
+                    "paper_bgcolor": paper_bg,
+                    "plot_bgcolor": plot_bg,
+                    "font": {"family": "Outfit, sans-serif", "color": font_color, "size": 11},
+                    "margin": {"l": 50, "r": 30, "t": 40, "b": 58},
+                    "xaxis": {
+                        "gridcolor": grid_color,
+                        "zerolinecolor": zero_line,
+                        "linecolor": zero_line
+                    },
+                    "yaxis": {
+                        "gridcolor": grid_color,
+                        "zerolinecolor": zero_line,
+                        "linecolor": zero_line
+                    }
+                }
+
+            def get_plotly_palette(theme):
+                if theme == "dark":
+                    return {
+                        "neutral": "#8D98A2",
+                        "blue": "#82A2B7",
+                        "teal": "#8FA99E",
+                        "violet": "#A49AB4",
+                        "rust": "#B58B83",
+                        "ochre": "#B4A27E",
+                        "danger": "#C27D78",
+                        "limit": "rgba(194, 125, 120, 0.52)",
+                        "reference": "rgba(143, 169, 158, 0.58)"
+                    }
+                return {
+                    "neutral": "#6F7D87",
+                    "blue": "#557A92",
+                    "teal": "#63877E",
+                    "violet": "#7B718D",
+                    "rust": "#986B64",
+                    "ochre": "#9A835D",
+                    "danger": "#A55F5A",
+                    "limit": "rgba(165, 95, 90, 0.42)",
+                    "reference": "rgba(99, 135, 126, 0.48)"
+                }
+
+            # Helper functions to convert Python structures (including NumPy types) to JS objects
+            def to_native(obj):
+                if isinstance(obj, dict):
+                    return {k: to_native(v) for k, v in obj.items()}
+                elif isinstance(obj, list):
+                    return [to_native(x) for x in obj]
+                elif isinstance(obj, tuple):
+                    return tuple(to_native(x) for x in obj)
+                elif isinstance(obj, np.ndarray):
+                    return obj.tolist()
+                elif isinstance(obj, (np.floating, np.integer)):
+                    return obj.item()
+                return obj
+
+            def to_js_obj(py_data):
+                return js.JSON.parse(json.dumps(to_native(py_data)))
+
+            def set_calc_status(state, label):
+                if hasattr(js, "setCalcStatus"):
+                    js.setCalcStatus(state, label)
+
+            def format_lsb_short(value):
+                abs_value = abs(value)
+                if abs_value >= 1e6:
+                    return f"{value / 1e6:.2f}M"
+                if abs_value >= 1e3:
+                    return f"{value / 1e3:.1f}k"
+                if abs_value >= 10.0:
+                    return f"{value:.1f}"
+                return f"{value:.3f}"
+
+            def format_voltage_error(volts):
+                abs_volts = abs(volts)
+                if abs_volts >= 1.0:
+                    return f"{volts:.3g}", "V"
+                if abs_volts >= 1e-3:
+                    return f"{volts * 1e3:.3g}", "mV"
+                if abs_volts >= 1e-6:
+                    return f"{volts * 1e6:.3g}", "uV"
+                return f"{volts * 1e9:.3g}", "nV"
+
+            def format_voltage_error_compact(volts):
+                value, unit = format_voltage_error(volts)
+                return f"{value} {unit}"
+
+            def build_enob_diagnosis(params, metrics, clip, residual_peak_lsb, residual_rms_lsb, ideal_sinad_db):
+                sinad_db = metrics['sinad_db']
+                loss_db = max(0.0, ideal_sinad_db - sinad_db)
+                settling_lsb = metrics['settling_error_lsb']
+                cap_type = params['cap_type']
+                is_nonlinear_cap = cap_type in ('X7R', 'X5R', 'CUSTOM', 'PRESET_FIT')
+
+                if clip:
+                    return {
+                        "severity": "bad",
+                        "limiter": "ADC clipping",
+                        "detail": (
+                            "The signal exceeds the ADC input range. Use the numeric table to inspect the "
+                            "resulting loss and residual values."
+                        )
+                    }
+
+                if params['sig_form'] != 'sine' and metrics['enob_loss'] > 1.0:
+                    return {
+                        "severity": "warn",
+                        "limiter": "Input waveform harmonics",
+                        "detail": (
+                            f"The selected waveform contains harmonics by design. The FFT treats everything "
+                            "outside the fundamental as noise or distortion."
+                        )
+                    }
+
+                if settling_lsb >= 1.0 and settling_lsb >= residual_rms_lsb:
+                    return {
+                        "severity": "warn" if settling_lsb < 8.0 else "bad",
+                        "limiter": "Acquisition settling",
+                        "detail": (
+                            "The sampling capacitor is not fully settled. Increase acquisition time or reduce "
+                            "source/switch resistance; the exact analog and LSB values are listed in the table."
+                        )
+                    }
+
+                if is_nonlinear_cap and metrics['thd_db'] > -80.0 and metrics['enob_loss'] > 1.0:
+                    return {
+                        "severity": "bad" if metrics['enob_loss'] >= 4.0 else "warn",
+                        "limiter": "Dielectric C(V) nonlinearity",
+                        "detail": (
+                            "The waveform can look smooth in volts while nonlinear capacitance still creates "
+                            "measurable harmonic and residual energy. Check the C(V) and residual rows below."
+                        )
+                    }
+
+                if metrics['enob_loss'] > 1.0:
+                    return {
+                        "severity": "warn",
+                        "limiter": "Spectral noise and distortion",
+                        "detail": (
+                            "The residual after removing the fundamental is large enough to reduce the effective "
+                            "dynamic range. The numeric table shows the measured loss."
+                        )
+                    }
+
+                return {
+                    "severity": "good",
+                    "limiter": "No dominant loss",
+                    "detail": (
+                        "SINAD is close to the selected target and no single loss mechanism dominates this point."
+                    )
+                }
+
+            def update_enob_insight(params, metrics, clip, residual_peak_lsb, residual_rms_lsb):
+                ideal_sinad_db = 6.02 * params['bits'] + 1.76
+                measured_sinad_db = metrics['sinad_db']
+                loss_db = max(0.0, ideal_sinad_db - measured_sinad_db)
+                lsb = params['v_ref'] / ((2 ** params['bits']) - 1)
+                residual_peak_mv = residual_peak_lsb * lsb * 1e3
+                diagnosis = build_enob_diagnosis(
+                    params, metrics, clip, residual_peak_lsb, residual_rms_lsb, ideal_sinad_db
+                )
+
+                insight = js.document.getElementById("enob-insight")
+                if insight:
+                    insight.className = f"insight-panel {diagnosis['severity']}"
+
+                js.document.getElementById("enob-limiter").innerText = diagnosis['limiter']
+                js.document.getElementById("enob-detail").innerText = diagnosis['detail']
+                js.document.getElementById("metric-ideal-sinad").innerText = f"{ideal_sinad_db:.1f} dB"
+                js.document.getElementById("metric-measured-sinad").innerText = f"{measured_sinad_db:.1f} dB"
+                js.document.getElementById("metric-loss-db").innerText = f"{loss_db:.1f} dB"
+                residual_peak_v = residual_peak_lsb * lsb
+                residual_rms_v = residual_rms_lsb * lsb
+                js.document.getElementById("metric-residual-peak").innerText = (
+                    f"{format_voltage_error_compact(residual_peak_v)} / {format_lsb_short(residual_peak_lsb)} LSB"
+                )
+                rms_elem = js.document.getElementById("metric-residual-rms")
+                if rms_elem:
+                    rms_elem.innerText = f"{format_voltage_error_compact(residual_rms_v)} / {format_lsb_short(residual_rms_lsb)} LSB"
+
+            def format_decomp_bits(value, signed=False):
+                if signed:
+                    return f"{value:+.2f} bit"
+                return f"{max(0.0, value):.2f} bit"
+
+            def format_decomp_db(value, signed=False):
+                db_value = value * 6.02
+                if signed:
+                    return f"{db_value:+.1f} dB"
+                return f"{max(0.0, db_value):.1f} dB"
+
+            def update_decomp_card(key, bits_value, scale_max, signed=False):
+                bit_elem = js.document.getElementById(f"decomp-{key}-bits")
+                db_elem = js.document.getElementById(f"decomp-{key}-db")
+
+                if bit_elem:
+                    bit_elem.innerText = format_decomp_bits(bits_value, signed=signed)
+                if db_elem:
+                    db_elem.innerText = format_decomp_db(bits_value, signed=signed)
+
+            def reset_single_simulation_output(detail):
+                """Clears stale numeric results after a failed parameter validation."""
+                reset_values = {
+                    "metric-enob-loss": "-- bit",
+                    "metric-loss-db": "-- dB",
+                    "metric-enob": "-- bit",
+                    "metric-measured-sinad": "-- dB",
+                    "metric-thd": "-- dB",
+                    "metric-settling": "--",
+                    "metric-settling-sub": "-- LSB",
+                    "metric-ideal-sinad": "-- dB",
+                    "metric-residual-peak": "--",
+                    "metric-residual-rms": "--",
+                    "decomp-baseline-bits": "--",
+                    "decomp-baseline-db": "-- dB",
+                    "decomp-cv-bits": "--",
+                    "decomp-cv-db": "-- dB",
+                    "decomp-settling-bits": "--",
+                    "decomp-settling-db": "-- dB",
+                    "decomp-combined-bits": "--",
+                    "decomp-combined-db": "-- dB",
+                    "decomp-interaction-bits": "--",
+                    "decomp-interaction-db": "-- dB",
+                }
+                for element_id, text in reset_values.items():
+                    elem = js.document.getElementById(element_id)
+                    if elem:
+                        elem.innerText = text
+
+                insight = js.document.getElementById("enob-insight")
+                if insight:
+                    insight.className = "insight-panel insight-summary"
+                js.document.getElementById("enob-limiter").innerText = "No valid result"
+                js.document.getElementById("enob-detail").innerText = detail
+
+                warn_elem = js.document.getElementById("clipping-warning")
+                warn_text = warn_elem.querySelector("span") if warn_elem else None
+                if warn_elem:
+                    warn_elem.classList.add("visible")
+                if warn_text:
+                    warn_text.innerText = detail
+
+            def calculate_metrics_from_samples(samples, params, v_ext_reference=None):
+                codes, clip = quantize_samples(samples, V_ref=params['v_ref'], bits=params['bits'])
+                v_rec_local = reconstruct_voltage(codes, V_ref=params['v_ref'], bits=params['bits'])
+                metrics_local = calculate_fft_metrics(
+                    v_samples=v_rec_local,
+                    f_s=params['f_s'],
+                    bits=params['bits'],
+                    v_ref=params['v_ref'],
+                    v_ext_samples=v_ext_reference
+                )
+                return metrics_local, clip
+
+            def update_loss_decomposition(params, res, metrics, clip, sig_gen):
+                linear_cap_model = CapacitorModel(
+                    cap_type='C0G',
+                    c_nom=params['c_ext_nom'],
+                    v_rated=params['v_rated']
+                )
+                linear_res = simulate_adc_input(
+                    signal_gen=sig_gen,
+                    cap_model=linear_cap_model,
+                    R_ext=params['r_ext'],
+                    R_sw=params['r_sw'],
+                    C_sh=params['c_sh'],
+                    T_acq=params['t_acq'],
+                    f_s=params['f_s'],
+                    N_samples=len(res['v_samples']),
+                    V_ref=params['v_ref'],
+                    method=params['method'],
+                    steps_per_cycle=75,
+                    store_trace=False
+                )
+
+                baseline_metrics, _ = calculate_metrics_from_samples(
+                    linear_res['v_ext_samples'],
+                    params,
+                    v_ext_reference=linear_res['v_ext_samples']
+                )
+                cv_only_metrics, cv_clip = calculate_metrics_from_samples(
+                    res['v_ext_samples'],
+                    params,
+                    v_ext_reference=res['v_ext_samples']
+                )
+                settling_only_metrics, settling_clip = calculate_metrics_from_samples(
+                    linear_res['v_samples'],
+                    params,
+                    v_ext_reference=linear_res['v_ext_samples']
+                )
+
+                baseline_loss = baseline_metrics['enob_loss']
+                cv_only_delta = max(0.0, cv_only_metrics['enob_loss'] - baseline_loss)
+                settling_only_delta = max(0.0, settling_only_metrics['enob_loss'] - baseline_loss)
+                combined_delta = max(0.0, metrics['enob_loss'] - baseline_loss)
+                interaction_delta = combined_delta - cv_only_delta - settling_only_delta
+
+                scale_max = max(
+                    0.25,
+                    metrics['enob_loss'],
+                    baseline_loss,
+                    cv_only_delta,
+                    settling_only_delta,
+                    combined_delta,
+                    abs(interaction_delta)
+                )
+
+                update_decomp_card("total", metrics['enob_loss'], scale_max)
+                update_decomp_card("baseline", baseline_loss, scale_max)
+                update_decomp_card("cv", cv_only_delta, scale_max)
+                update_decomp_card("settling", settling_only_delta, scale_max)
+                update_decomp_card("combined", combined_delta, scale_max)
+                update_decomp_card("interaction", interaction_delta, scale_max, signed=True)
+
+            # State variables
+            initialized = False
+            last_sweep_results = None
+            last_sweep_axes = None
+            debounce_task = None
+
+            def get_slider_values():
+                """Reads values from the HTML inputs."""
+                sig_form = js.document.getElementById("sig_form").value
+                sig_amp = float(js.document.getElementById("sig_amp").value)
+                sig_freq = float(js.document.getElementById("sig_freq").value)
+                sig_offset = float(js.document.getElementById("sig_offset").value)
+                
+                r_ext = float(js.document.getElementById("r_ext").value)
+                c_ext_nom = float(js.document.getElementById("c_ext_nom").value) * 1e-9  # in F
+                v_rated = float(js.document.getElementById("v_rated").value)
+                cap_type = js.document.getElementById("cap_type").value
+                custom_drop = float(js.document.getElementById("custom_drop").value) / 100.0 if cap_type == 'CUSTOM' else None
+                cap_preset = js.document.getElementById("cap_preset").value
+                
+                # Retrieve preset fitting parameters
+                v50 = None
+                n = None
+                if cap_preset != 'custom' and cap_preset in CAPACITOR_PRESETS:
+                    preset_info = CAPACITOR_PRESETS[cap_preset]
+                    v50 = preset_info.get('v50')
+                    n = preset_info.get('n')
+                
+                r_sw = float(js.document.getElementById("r_sw").value)
+                c_sh = float(js.document.getElementById("c_sh").value) * 1e-12  # in F
+                t_acq = float(js.document.getElementById("t_acq").value) * 1e-9  # in s
+                f_s = float(js.document.getElementById("f_s").value) * 1e3  # in Hz
+                bits = int(js.document.getElementById("bits").value)
+                v_ref = float(js.document.getElementById("v_ref").value)
+                sim_method = js.document.getElementById("sim_method").value
+                
+                return {
+                    'sig_form': sig_form, 'sig_amp': sig_amp, 'sig_freq': sig_freq, 'sig_offset': sig_offset,
+                    'r_ext': r_ext, 'c_ext_nom': c_ext_nom, 'v_rated': v_rated, 'cap_type': cap_type, 'custom_drop': custom_drop,
+                    'r_sw': r_sw, 'c_sh': c_sh, 't_acq': t_acq, 'f_s': f_s, 'bits': bits, 'v_ref': v_ref, 'method': sim_method,
+                    'cap_preset': cap_preset, 'v50': v50, 'n': n
+                }
+
+            def run_single_simulation(*args, **kwargs):
+                """Runs single scenario simulation and updates Plotly charts."""
+                global initialized
+                try:
+                    calc_started_at = time.perf_counter()
+                    set_calc_status("updating", "Updating...")
+                    params = get_slider_values()
+                    
+                    # Signal generator and capacitor model
+                    sig_gen = SignalGenerator(
+                        form=params['sig_form'],
+                        amplitude=params['sig_amp'],
+                        frequency=params['sig_freq'],
+                        dc_offset=params['sig_offset']
+                    )
+                    
+                    cap_model = CapacitorModel(
+                        cap_type=params['cap_type'],
+                        c_nom=params['c_ext_nom'],
+                        v_rated=params['v_rated'],
+                        custom_drop=params['custom_drop'],
+                        v50=params['v50'],
+                        n=params['n']
+                    )
+                    
+                    # FFT samples count - dynamically adjust to capture at least 4 cycles of the aliased frequency
+                    alias_freq = abs(((params['sig_freq'] + 0.5 * params['f_s']) % params['f_s']) - 0.5 * params['f_s'])
+                    N_samples = 1024
+                    if alias_freq > 0:
+                        required_samples = 4.0 * params['f_s'] / alias_freq
+                        while N_samples < required_samples and N_samples < 8192:
+                            N_samples *= 2
+                            
+                    trace_window_s = 4.0 / params['sig_freq']
+                    
+                    # Run simulation
+                    res = simulate_adc_input(
+                        signal_gen=sig_gen,
+                        cap_model=cap_model,
+                        R_ext=params['r_ext'],
+                        R_sw=params['r_sw'],
+                        C_sh=params['c_sh'],
+                        T_acq=params['t_acq'],
+                        f_s=params['f_s'],
+                        N_samples=N_samples,
+                        V_ref=params['v_ref'],
+                        method=params['method'],
+                        steps_per_cycle=100,
+                        trace_until=trace_window_s
+                    )
+                    
+                    # Quantization and reconstruction
+                    codes, clip = quantize_samples(res['v_samples'], V_ref=params['v_ref'], bits=params['bits'])
+                    v_rec = reconstruct_voltage(codes, V_ref=params['v_ref'], bits=params['bits'])
+                    
+                    # Spectral analysis
+                    metrics = calculate_fft_metrics(
+                        v_samples=v_rec,
+                        f_s=params['f_s'],
+                        bits=params['bits'],
+                        v_ref=params['v_ref'],
+                        v_ext_samples=res['v_ext_samples']
+                    )
+                    record_quality = assess_spectral_record(
+                        signal_frequency=params['sig_freq'],
+                        f_s=params['f_s'],
+                        n_samples=N_samples,
+                        signal_form=params['sig_form']
+                    )
+
+                    # Residual after removing the best-fit fundamental. This makes SINAD loss visible in LSB.
+                    lsb = params['v_ref'] / ((2 ** params['bits']) - 1)
+                    discard = min(len(v_rec) // 10, 10)
+                    sample_indices_all = np.arange(len(v_rec))
+                    fit_mask = sample_indices_all >= discard
+                    t_fit = res['t_samples'][fit_mask]
+                    y_fit = v_rec[fit_mask]
+                    omega = 2.0 * np.pi * params['sig_freq']
+                    fit_basis = np.column_stack((
+                        np.sin(omega * t_fit),
+                        np.cos(omega * t_fit),
+                        np.ones_like(t_fit)
+                    ))
+                    fit_coeffs, *_ = np.linalg.lstsq(fit_basis, y_fit, rcond=None)
+                    all_basis = np.column_stack((
+                        np.sin(omega * res['t_samples']),
+                        np.cos(omega * res['t_samples']),
+                        np.ones_like(res['t_samples'])
+                    ))
+                    fitted_fundamental = all_basis @ fit_coeffs
+                    sinad_residual_v = v_rec - fitted_fundamental
+                    sinad_residual_lsb = sinad_residual_v / lsb
+                    settling_error_lsb_trace = (res['v_ext_samples'] - res['v_samples']) / lsb
+                    residual_eval = sinad_residual_lsb[fit_mask]
+                    residual_peak_lsb = float(np.max(np.abs(residual_eval))) if len(residual_eval) else 0.0
+                    residual_rms_lsb = float(np.sqrt(np.mean(residual_eval ** 2))) if len(residual_eval) else 0.0
+                    
+                    # --- Update numeric metrics in HTML ---
+                    js.document.getElementById("metric-enob").innerText = f"{metrics['enob']:.2f} bit"
+                    js.document.getElementById("metric-enob-loss").innerText = f"{metrics['enob_loss']:.2f} bit"
+                    js.document.getElementById("metric-thd").innerText = f"{metrics['thd_db']:.2f} dB"
+                    settling_v = metrics['settling_error_lsb'] * lsb
+                    js.document.getElementById("metric-settling").innerText = format_voltage_error_compact(settling_v)
+                    settling_sub = js.document.getElementById("metric-settling-sub")
+                    if settling_sub:
+                        settling_sub.innerText = f"{format_lsb_short(metrics['settling_error_lsb'])} LSB"
+                    update_enob_insight(params, metrics, clip, residual_peak_lsb, residual_rms_lsb)
+                    update_loss_decomposition(params, res, metrics, clip, sig_gen)
+                    
+                    # Clipping warning panel
+                    warn_elem = js.document.getElementById("clipping-warning")
+                    warn_text = warn_elem.querySelector("span")
+                    if clip:
+                        warn_elem.classList.add("visible")
+                        if warn_text:
+                            warn_text.innerText = (
+                                f"WARNING: ADC clipping detected. Signal exceeded the 0..{params['v_ref']:g} V range."
+                            )
+                    elif record_quality['warnings']:
+                        warn_elem.classList.add("visible")
+                        if warn_text:
+                            warn_text.innerText = "SPECTRAL LIMIT: " + " ".join(record_quality['warnings'])
+                    else:
+                        warn_elem.classList.remove("visible")
+                        
+                    # --- CHART RENDERING (Plotly.js) ---
+                    # Query current theme layout
+                    current_theme = js.document.body.getAttribute("data-theme") or "dark"
+                    layout_cfg = get_plotly_layout(current_theme)
+                    plot_colors = get_plotly_palette(current_theme)
+                    
+                    # 1. Time Domain Waveforms (Transient Response)
+                    n_cycles_show = 4.0
+                    num_periods_s = trace_window_s
+                    trace_mask = res['t'] <= num_periods_s
+                    sample_mask = res['t_samples'] <= num_periods_s
+                    
+                    visible_t = res['t'][trace_mask]
+                    visible_sample_t = res['t_samples'][sample_mask]
+                    t_ms = (visible_t * 1e3).tolist()
+                    t_s_ms = (visible_sample_t * 1e3).tolist()
+
+                    shown_window_s = float(visible_t[-1]) if len(visible_t) else 0.0
+                    shown_cycles = shown_window_s * params['sig_freq']
+                    if shown_cycles >= n_cycles_show - 0.05:
+                        time_plot_title = f"Transient Process (first {n_cycles_show:.0f} cycles)"
+                        time_caption = f"{n_cycles_show:.0f} cycles shown"
+                    else:
+                        time_plot_title = (
+                            f"Transient Process ({shown_window_s * 1e3:.1f} ms shown, "
+                            f"{shown_cycles:.2f} cycles)"
+                        )
+                        time_caption = f"Limited: {shown_cycles:.2f}/{n_cycles_show:.0f} cycles"
+
+                    caption_elem = js.document.getElementById("time-view-caption")
+                    if caption_elem:
+                        caption_elem.innerHTML = f"<i class='fa-solid fa-clock'></i> {time_caption}"
+                    
+                    time_data = [
+                        {
+                            "x": t_ms, "y": res['v_in'][trace_mask].tolist(),
+                            "name": "Input V_in", "type": "scatter", "mode": "lines",
+                            "line": {"color": plot_colors["neutral"], "dash": "dash", "width": 1.4}
+                        },
+                        {
+                            "x": t_ms, "y": res['v_ext'][trace_mask].tolist(),
+                            "name": "Filter V_ext", "type": "scatter", "mode": "lines",
+                            "line": {"color": plot_colors["blue"], "width": 2.2}
+                        },
+                        {
+                            "x": t_ms, "y": res['v_sh'][trace_mask].tolist(),
+                            "name": "SHA V_sh", "type": "scatter", "mode": "lines",
+                            "line": {"color": plot_colors["violet"], "width": 1.6}
+                        },
+                        {
+                            "x": t_s_ms, "y": res['v_samples'][sample_mask].tolist(),
+                            "name": "ADC Samples", "type": "scatter", "mode": "markers",
+                            "marker": {
+                                "color": plot_colors["danger"] if clip else plot_colors["teal"],
+                                "size": 7,
+                                "symbol": "circle"
+                            }
+                        }
+                    ]
+                    
+                    t_max_val = max(t_ms) if t_ms else 1.0
+                    time_layout = layout_cfg.copy()
+                    time_layout.update({
+                        "title": time_plot_title,
+                        "xaxis": {**layout_cfg["xaxis"], "title": "Time (ms)"},
+                        "yaxis": {**layout_cfg["yaxis"], "title": "Voltage (V)", "range": [-0.5, params['v_ref'] + 0.5]},
+                        "shapes": [
+                            {"type": "line", "x0": 0, "x1": t_max_val, "y0": 0, "y1": 0, "line": {"color": plot_colors["limit"], "width": 1, "dash": "dot"}},
+                            {"type": "line", "x0": 0, "x1": t_max_val, "y0": params['v_ref'], "y1": params['v_ref'], "line": {"color": plot_colors["limit"], "width": 1, "dash": "dot"}}
+                        ],
+                        "legend": {"orientation": "h", "y": -0.15, "x": 0.5, "xanchor": "center"}
+                    })
+                    
+                    js.renderPlotlyChart("time-plot", to_js_obj(time_data), to_js_obj(time_layout))
+                    
+                    # 2. ENOB Error View
+                    error_mask = sample_mask & (sample_indices_all >= discard)
+                    error_indices = np.where(error_mask)[0]
+                    if len(error_indices) == 0:
+                        error_indices = np.where(sample_mask)[0]
+
+                    t_error_ms = (res['t_samples'][error_indices] * 1e3).tolist()
+                    residual_lsb_plot = sinad_residual_lsb[error_indices]
+                    settling_lsb_plot = settling_error_lsb_trace[error_indices]
+
+                    err_span = 1.0
+                    if len(error_indices) > 0:
+                        err_span = max(
+                            err_span,
+                            float(np.max(np.abs(residual_lsb_plot))),
+                            float(np.max(np.abs(settling_lsb_plot)))
+                        )
+                    err_span = max(2.0, err_span * 1.15)
+                    err_x0 = min(t_error_ms) if t_error_ms else 0.0
+                    err_x1 = max(t_error_ms) if t_error_ms else t_max_val
+
+                    error_data = [
+                        {
+                            "x": t_error_ms,
+                            "y": residual_lsb_plot.tolist(),
+                            "name": "SINAD residual",
+                            "type": "scatter",
+                            "mode": "lines+markers",
+                            "line": {"color": plot_colors["rust"], "width": 1.8},
+                            "marker": {"color": plot_colors["rust"], "size": 4}
+                        },
+                        {
+                            "x": t_error_ms,
+                            "y": settling_lsb_plot.tolist(),
+                            "name": "Settling only",
+                            "type": "scatter",
+                            "mode": "lines",
+                            "line": {"color": plot_colors["blue"], "width": 1.4, "dash": "dash"}
+                        }
+                    ]
+
+                    error_layout = layout_cfg.copy()
+                    error_layout.update({
+                        "title": "Residual After Removing Fundamental",
+                        "margin": {**layout_cfg["margin"], "t": 42, "b": 82},
+                        "xaxis": {**layout_cfg["xaxis"], "title": {"text": "Time (ms)", "standoff": 14}, "automargin": True},
+                        "yaxis": {**layout_cfg["yaxis"], "title": "Error (LSB)", "range": [-err_span, err_span]},
+                        "shapes": [
+                            {"type": "line", "x0": err_x0, "x1": err_x1, "y0": 0, "y1": 0, "line": {"color": "rgba(156, 163, 175, 0.45)", "width": 1}},
+                            {"type": "line", "x0": err_x0, "x1": err_x1, "y0": 1, "y1": 1, "line": {"color": plot_colors["reference"], "width": 1, "dash": "dot"}},
+                            {"type": "line", "x0": err_x0, "x1": err_x1, "y0": -1, "y1": -1, "line": {"color": plot_colors["reference"], "width": 1, "dash": "dot"}}
+                        ],
+                        "legend": {"orientation": "h", "y": -0.32, "x": 0.5, "xanchor": "center"}
+                    })
+                    js.document.getElementById("error-view-caption").innerText = (
+                        f"Peak {residual_peak_lsb:.1f} LSB / RMS {residual_rms_lsb:.1f} LSB"
+                    )
+                    js.renderPlotlyChart("error-plot", to_js_obj(error_data), to_js_obj(error_layout))
+                    
+                    # 3. FFT Power Spectrum
+                    fft_freqs_khz = (metrics['frequencies'] / 1e3).tolist()
+                    fft_power_db = metrics['power_spec_db'].tolist()
+                    
+                    h_freqs = [fft_freqs_khz[idx] for idx in metrics['harmonics_idx'] if idx < len(fft_freqs_khz)]
+                    h_powers = [fft_power_db[idx] for idx in metrics['harmonics_idx'] if idx < len(fft_freqs_khz)]
+                    
+                    fft_data = [
+                        {
+                            "x": fft_freqs_khz, "y": fft_power_db,
+                            "name": "Spectrum", "type": "scatter", "mode": "lines",
+                            "line": {"color": plot_colors["blue"], "width": 1.4},
+                            "fill": "tozeroy",
+                            "fillcolor": "rgba(85, 122, 146, 0.045)" if current_theme == "light" else "rgba(130, 162, 183, 0.055)"
+                        },
+                        {
+                            "x": h_freqs, "y": h_powers,
+                            "name": "Harmonics", "type": "scatter", "mode": "markers",
+                            "marker": {"color": plot_colors["rust"], "size": 6, "symbol": "diamond"}
+                        }
+                    ]
+                    
+                    fft_layout = layout_cfg.copy()
+                    fft_layout.update({
+                        "title": "Digitized Signal Power Spectrum",
+                        "xaxis": {**layout_cfg["xaxis"], "title": "Frequency (kHz)", "range": [0, params['f_s']/2/1e3]},
+                        "yaxis": {**layout_cfg["yaxis"], "title": "Power (dB)", "range": [-130, 5]},
+                        "legend": {"orientation": "h", "y": -0.15, "x": 0.5, "xanchor": "center"}
+                    })
+                    
+                    js.renderPlotlyChart("fft-plot", to_js_obj(fft_data), to_js_obj(fft_layout))
+                    
+                    # 4. Nonlinear Capacitance C(V)
+                    v_axis = np.linspace(-2.0 * params['v_rated'], 2.0 * params['v_rated'], 200)
+                    c_axis_nf = cap_model.get_C(v_axis) * 1e9
+                    
+                    v_ext_min = np.min(res['v_ext'])
+                    v_ext_max = np.max(res['v_ext'])
+                    
+                    cv_data = [
+                        {
+                            "x": v_axis.tolist(), "y": c_axis_nf.tolist(),
+                            "name": "C(V) Profile", "type": "scatter", "mode": "lines",
+                            "line": {"color": plot_colors["rust"], "width": 2.1}
+                        },
+                        {
+                            "x": [v_ext_min, v_ext_max],
+                            "y": [float(cap_model.get_C(v_ext_min)*1e9), float(cap_model.get_C(v_ext_max)*1e9)],
+                            "name": "Operating Range", "type": "scatter", "mode": "lines+markers",
+                            "line": {"color": plot_colors["blue"], "width": 3},
+                            "marker": {"size": 7, "color": plot_colors["blue"]}
+                        }
+                    ]
+                    
+                    cv_layout = layout_cfg.copy()
+                    cv_layout.update({
+                        "title": "External Capacitor Capacitance Profile",
+                        "xaxis": {**layout_cfg["xaxis"], "title": "Bias Voltage (V)", "range": [-params['v_rated'] * 1.5, params['v_rated'] * 1.5]},
+                        "yaxis": {**layout_cfg["yaxis"], "title": "Capacitance (nF)", "range": [0, params['c_ext_nom']*1e9 * 1.1]},
+                        "legend": {"orientation": "h", "y": -0.15, "x": 0.5, "xanchor": "center"}
+                    })
+                    
+                    js.renderPlotlyChart("cv-plot", to_js_obj(cv_data), to_js_obj(cv_layout))
+                    
+                    # Hide loader overlay on first load completion
+                    if not initialized:
+                        overlay = js.document.getElementById("loading-overlay")
+                        overlay.classList.add("hidden")
+                        overlay.style.opacity = "0"
+                        overlay.style.visibility = "hidden"
+                        overlay.style.pointerEvents = "none"
+                        initialized = True
+                        
+                    # Save state to localStorage via JS proxy
+                    js.saveState()
+                    elapsed_ms = (time.perf_counter() - calc_started_at) * 1000.0
+                    set_calc_status("ready", f"Ready {elapsed_ms:.0f} ms")
+                except Exception as e:
+                    reset_single_simulation_output(
+                        "The current parameter combination is outside the valid simulation range. "
+                        "Adjust the input values before using the numeric table."
+                    )
+                    set_calc_status("error", "Invalid parameters")
+                    show_error("Simulation Error", e, traceback.format_exc())
+
+            async def _debounced_single_simulation():
+                try:
+                    set_calc_status("updating", "Updating...")
+                    await asyncio.sleep(0.25)
+                    run_single_simulation()
+                except asyncio.CancelledError:
+                    pass
+
+            def schedule_single_simulation(*args, **kwargs):
+                """Debounces high-frequency input events before running the solver."""
+                global debounce_task
+                if debounce_task is not None:
+                    debounce_task.cancel()
+                debounce_task = asyncio.create_task(_debounced_single_simulation())
+
+            def update_charts_theme():
+                """Re-renders active layouts when theme changes."""
+                run_single_simulation()
+                if last_sweep_results is not None:
+                    render_sweep_plots(last_sweep_results, last_sweep_axes)
+
+            def render_sweep_plots(sweep_res, sweep_axes):
+                """Draws parametric sweep charts using active theme styling."""
+                theme = js.document.body.getAttribute("data-theme") or "dark"
+                layout_cfg = get_plotly_layout(theme)
+                plot_colors = get_plotly_palette(theme)
+                
+                axis_y_name = js.document.getElementById("sweep_axis_y").value
+                axis_x_name = js.document.getElementById("sweep_axis_x").value
+                
+                y_vals = sweep_axes[axis_y_name]
+                x_vals = sweep_axes[axis_x_name]
+                
+                if axis_y_name == 'R_ext':
+                    y_label = "Filter Resistance R_ext (Ω)"
+                elif axis_y_name == 'sig_frequency':
+                    y_label = "Signal Frequency f_in (Hz)"
+                else: # T_acq
+                    y_label = "Acquisition Time T_acq (ns)"
+                    
+                if axis_x_name == 'R_ext':
+                    x_label = "Filter Resistance R_ext (Ω)"
+                elif axis_x_name == 'sig_frequency':
+                    x_label = "Signal Frequency f_in (Hz)"
+                else: # T_acq
+                    x_label = "Acquisition Time T_acq (ns)"
+                
+                enob_loss_matrix = sweep_res['enob_loss']
+                
+                y_plot_vals = [y * 1e9 if axis_y_name == 'T_acq' else y for y in y_vals]
+                x_plot_vals = [x * 1e9 if axis_x_name == 'T_acq' else x for x in x_vals]
+                
+                heatmap_data = [{
+                    "z": enob_loss_matrix,
+                    "x": x_plot_vals,
+                    "y": y_plot_vals,
+                    "type": "heatmap",
+                    "colorscale": [
+                        [0.0, '#DCE7E3'],
+                        [0.18, plot_colors["teal"]],
+                        [0.48, plot_colors["blue"]],
+                        [0.72, plot_colors["ochre"]],
+                        [1.0, plot_colors["rust"]]
+                    ],
+                    "colorbar": {"title": "ENOB Loss (bits)"}
+                }]
+                
+                heatmap_layout = layout_cfg.copy()
+                heatmap_layout.update({
+                    "xaxis": {**layout_cfg["xaxis"], "title": x_label},
+                    "yaxis": {**layout_cfg["yaxis"], "title": y_label}
+                })
+                
+                js.renderPlotlyChart("heatmap-plot", to_js_obj(heatmap_data), to_js_obj(heatmap_layout))
+
+            def run_parametric_sweep_ui(*args, **kwargs):
+                """Triggers multi-parametric scanning and updates heatmap plot."""
+                btn = js.document.getElementById("btn-run-sweep")
+                btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Sweeping...'
+                btn.disabled = True
+                set_calc_status("sweeping", "Sweep running...")
+                asyncio.create_task(execute_sweep_async())
+
+            def build_sweep_axis_values(prefix, axis_name):
+                min_val = float(js.document.getElementById(f"sweep_{prefix}_min").value)
+                max_val = float(js.document.getElementById(f"sweep_{prefix}_max").value)
+                points = int(float(js.document.getElementById(f"sweep_{prefix}_points").value))
+                scale = js.document.getElementById(f"sweep_{prefix}_scale").value
+
+                if points < 2 or points > 40:
+                    raise ValueError("Sweep points must be between 2 and 40 per axis")
+                if min_val >= max_val:
+                    raise ValueError("Sweep min must be lower than max")
+                if scale == "log" and (min_val <= 0 or max_val <= 0):
+                    raise ValueError("Log sweep needs positive min and max values")
+
+                if axis_name == "T_acq":
+                    min_val *= 1e-9
+                    max_val *= 1e-9
+
+                if scale == "log":
+                    return np.geomspace(min_val, max_val, points).tolist()
+                return np.linspace(min_val, max_val, points).tolist()
+                
+            async def execute_sweep_async():
+                global last_sweep_results, last_sweep_axes
+                btn = js.document.getElementById("btn-run-sweep")
+                sweep_ok = False
+                try:
+                    sweep_started_at = time.perf_counter()
+                    params = get_slider_values()
+                    
+                    axis_y_name = js.document.getElementById("sweep_axis_y").value
+                    axis_x_name = js.document.getElementById("sweep_axis_x").value
+
+                    if axis_y_name == axis_x_name:
+                        raise ValueError("X and Y sweep axes must be different")
+
+                    y_vals = build_sweep_axis_values("y", axis_y_name)
+                    x_vals = build_sweep_axis_values("x", axis_x_name)
+
+                    if len(y_vals) * len(x_vals) > 400:
+                        raise ValueError("Sweep grid is too large; keep total points at 400 or less")
+                    
+                    sweep_axes = {
+                        axis_y_name: y_vals,
+                        axis_x_name: x_vals
+                    }
+                    
+                    # Base parameters setup
+                    base_params = {
+                        'R_ext': params['r_ext'], 'R_sw': params['r_sw'], 'C_sh': params['c_sh'], 'T_acq': params['t_acq'],
+                        'f_s': params['f_s'], 'N_samples': 1024, 'V_ref': params['v_ref'], 'method': 'semi_implicit',
+                        'bits': params['bits'],
+                        'sig_form': params['sig_form'], 'sig_amplitude': params['sig_amp'], 'sig_frequency': params['sig_freq'], 'sig_dc_offset': params['sig_offset'],
+                        'cap_cap_type': params['cap_type'], 'cap_c_nom': params['c_ext_nom'], 'cap_v_rated': params['v_rated'], 'cap_custom_drop': params['custom_drop'],
+                        'cap_v50': params['v50'], 'cap_n': params['n']
+                    }
+                    
+                    await asyncio.sleep(0.01)
+                    
+                    sweep_res = run_parametric_sweep(base_params, sweep_axes)
+                    
+                    # Store variables globally for dynamic theme re-draws
+                    last_sweep_results = sweep_res
+                    last_sweep_axes = sweep_axes
+                    
+                    render_sweep_plots(sweep_res, sweep_axes)
+                    sweep_ok = True
+                    
+                except Exception as e:
+                    set_calc_status("error", "Sweep error")
+                    js.console.error(f"Sweep error: {e}\n{traceback.format_exc()}")
+                    js.alert(f"Computation error: {e}")
+                finally:
+                    btn.innerHTML = '<i class="fa-solid fa-play"></i> Run Sweep'
+                    btn.disabled = False
+                    if sweep_ok:
+                        elapsed_s = time.perf_counter() - sweep_started_at
+                        set_calc_status("ready", f"Ready {elapsed_s:.1f} s")
+
+            # Expose simulation functions to JS window
+            js.window.runSingleSimulationPy = create_proxy(run_single_simulation)
+            js.window.updateChartsThemePy = create_proxy(update_charts_theme)
+
+            # Bind event listeners
+            inputs_to_watch = [
+                "cap_preset", "sig_form", "sig_amp", "sig_freq", "sig_offset",
+                "r_ext", "c_ext_nom", "v_rated", "cap_type", "custom_drop",
+                "r_sw", "c_sh", "t_acq", "f_s", "bits", "v_ref", "sim_method"
+            ]
+            
+            change_proxy = create_proxy(schedule_single_simulation)
+            for input_id in inputs_to_watch:
+                elem = js.document.getElementById(input_id)
+                if elem:
+                    if elem.tagName == 'SELECT':
+                        elem.addEventListener("change", change_proxy)
+                    else:
+                        elem.addEventListener("input", change_proxy)
+                        
+            # Bind sweep button
+            sweep_btn = js.document.getElementById("btn-run-sweep")
+            sweep_proxy = create_proxy(run_parametric_sweep_ui)
+            sweep_btn.addEventListener("click", sweep_proxy)
+            
+            # Initial simulation run
+            run_single_simulation()
+
+        except Exception as e:
+            show_error("Wasm Initialization Error", e, traceback.format_exc())
+    </script>
+</body>
+</html>
